@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+	 <head>
+		  <meta charset="UTF-8">
+		  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+		  <title>To-Do</title>        
+		  <link rel="stylesheet" href="styles/style.css">
+		  <link rel="stylesheet" href="styles/light.css" id="toSwitchTheme">
+	 </head>
+
+	 <body>
+	 	<div class="null">
+	 		
+	 	</div>
+		<div class="wrapper">
+			<div class="wrapper_info">
+				<div class="wrapper_description">
+					<h3>Shortcuts</h3>
+					<div data-title="close window" onclick="toCloseWindow()"></div>
+				</div>
+				<div class="wrapper_info_table"></div>
+			</div>
+
+			<div class="wrapper_trash">
+				<div class="wrapper_description">
+					<h3>Trash</h3>
+					<div data-title="close window" onclick="toCloseWindow()"></div>
+					<div data-title="empty trash" onclick="toEmptyTrash()"></div>
+				</div>
+				<div class="wrapper_trash_tasks"></div>
+			</div>
+
+			<div class="wrapper_task">
+				<input class="wrapper_task_title" placeholder="Title.." type="text">
+				<div class="wrapper_task_task" contenteditable="true" data-placeholder="Type task..">
+					
+				</div>
+				<div class="wrapper_task_menu">
+					<div class="wrapper_task_menu_options">
+						<div data-title="to save task"></div>
+						<div data-title="to cancel task" onclick="cancelIt()"></div>
+						<div data-title="to by list" onclick="byListIt()"></div>
+						<div data-title="done task" onclick="doneIt()"></div>
+						<div data-title="to pin task" onclick="pinIt()"></div>
+						<div data-title="to copy task" onclick="copyIt()"> </div>
+						<div data-title="to apply color" class="getColorWrapper">
+							<div class="gettingColor" onclick="toDetermineColor()">
+								<div></div>
+								<div></div>
+								<div></div>
+								<div></div>
+								<div></div>
+								<div></div>
+								<div></div>
+								<div></div>
+								<div></div>
+							</div>
+						</div>
+						<div data-title="to delete task" onclick="deleteIt()"></div>
+					</div>
+					<div class="wrapper_task_menu_date">Date</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="topBar">
+			<div class="topBar_add" data-title="add task"></div>
+			<div class="topBar_theme" data-title="chagne theme" onclick="switchTheme()"></div>
+			<div class="topBar_info" data-title="how to use"></div>
+			<div class="topBar_deleteAll" data-title="delete all done task"></div>
+			<div class="topBar_trash" data-title="task trash"></div>
+			<div class="topBar_exit" data-title="exit" onclick="exit()"></div>
+			<div class="helpElement"><div></div><span class="">Click to add new task</span></div>
+		</div>
+
+		<div class="taskWrapper">
+			<div class="pinnedTasks"></div>
+			<div class="tasks"></div>
+		</div>
+
+		<div class="popUpNotify"></div>
+
+	   <script src = "scripts/script.js"></script>
+	   <script src = "scripts/script2.js"></script>
+	</body>
+</html>
