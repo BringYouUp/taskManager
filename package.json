@@ -1,0 +1,15 @@
+{
+  "name": "taskmanager",
+  "version": "1.0.0",
+  "description": "my js project",
+  "main": "js/script.js",
+  "scripts": {
+    "start": "browser-sync start --server --files \"*.html, sass/*.sass,  js/*.js\"",
+    "scss": "node-sass -w sass/ -o css/"
+  },
+  "author": "bringyouup",
+  "license": "ISC",
+  "dependencies": {
+    "node-sass": "^6.0.1"
+  }
+}

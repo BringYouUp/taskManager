@@ -1,22 +1,21 @@
-// ToDo
 let
-    taskCounter = 0,
-    doneTaskCounter = 0,
-    crucialTask = null,
-    crucialTaskNum = null,
-    currTask = null,
+    taskCounter = 0,        // amount of tasks
+    doneTaskCounter = 0,        // amount done tasks
+    crucialTask = null,     // active task in DOM
+    crucialTaskNum = null,      // num of active task in DOM
+    currTask = null,        // active task
 
-    createMode = false
+    createMode = false,     // for closerAddTask
 
-    itWasByList = null,
-    byListCurr = null,
-    byListCurrPos = null,
+    itWasByList = null,     // cache variable
+    byListCurr = null,      // active line in DOM (byList MODE)
+    byListCurrPos = null,       // number of active line in DOM (byList MODE)
 
-    animDuration = 250
-    taskWidth = 260
-    taskGap = 15,
+    animDuration = 250      // default duration of all animations
+    taskWidth = 0       // changing value occurs in function toCalculateTasksWidth
+    taskGap = 0,        // gap between tasks
+    totalTaskWidth = taskWidth + taskGap,       // for function getTaskPos
     byListTreeviewMargin = 25
-    totalTaskWidth = taskWidth + taskGap,
     totalWidth = document.documentElement.clientWidth,
     totalTasksInRow = Math.trunc(totalWidth / totalTaskWidth),
 
@@ -29,13 +28,13 @@ let
     wrapperTaskTask = document.querySelector('.wrapper_task_task'),
     wrapperTaskDate = document.querySelector('.wrapper_task_menu_date')
 
-    objTasks = [],
-    objTrashTasks = [],
+    objTasks = [],      // all ordinary tasks will be here
+    objTrashTasks = [],     // all deleted tasks will be here
 
     howToUseMap = new Map([
         [['KEY'], 'DESCRIPTION'],
         [['Alt', '+', 'S'], 'save task'],
-        [['Ctrl', '+', 'S'], 'add new task'],
+        [['Shift', '+', 'S'], 'add new task'],
         [['↑', '/', '↓'], 'switch between lines in LIST MODE'],
         [['Ctrl', '+','[' , '/', ']'], 'for creatig subtasks in LIST MODE'],
         [['Enter' , '/',  'Double click'], 'add new line under active line in LIST MODE'],
@@ -44,36 +43,11 @@ let
         [['Shift' , '+', 'Del'], 'delete active line with subtasks in LIST MODE'],
     ]),
 
-    lightThemeArray = ['rgb(245, 245, 245)', 'rgb(255, 87, 87)', 'rgb(255, 196, 87)', 'rgb(255, 255, 87)','rgb(189, 253, 127)', 'rgb(87, 171, 87)', 'rgb(176, 223, 242)', 'rgb(127, 127, 255)', 'rgb(191, 127, 191)'], 
-    darkThemeArray = ['rgb(48, 48, 48)', 'rgb(102, 0, 0)', 'rgb(102, 66, 0)', 'rgb(102, 102, 0)', 'rgb(50, 101, 0)', 'rgb(0, 51, 0)', 'rgb(41, 62, 71)', 'rgb(0, 0, 51)', 'rgb(51, 0, 51)']
+    lightThemeArray = ['rgb(245, 245, 245)', 'rgb(255,127,127)', 'rgb(255, 196, 87)', 'rgb(255, 255, 153)','rgb(215, 254, 178)', 'rgb(127, 191, 127)', 'rgb(176, 223, 242)', 'rgb(140, 140, 255)', 'rgb(198, 140, 198)'], 
+    darkThemeArray = ['rgb(48, 48, 48)', 'rgb(51, 0, 0)', 'rgb(64, 41, 0)', 'rgb(64, 64, 0)', 'rgb(31, 63, 0)', 'rgb(0, 32, 0)', 'rgb(41, 62, 71)', 'rgb(0, 0, 38)', 'rgb(39, 0, 39)'],
+    platforms = ['Android', 'webOS', 'iPhone', 'iPad', 'iPod', 'BlackBerry', 'BB', 'PlayBook', 'IEMobile','Windows Phone']
+    // if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent)) {
 
-function toGenerateInfoBlock() {
-    let
-        specialSymbols = ['+', '/', 'KEY']
-    for (let item of howToUseMap)
-    {
-        let
-            zeroCap = createSomeElement('div', ['wrapper_info_table_cap']),
-            firstCap = createSomeElement('div'),
-            secondCap = createSomeElement('div')
-
-        for (let item2 of item[0])
-            if (!specialSymbols.includes(item2))
-            {
-                let
-                    cache = createSomeElement('span')
-
-                cache.innerText = item2
-                firstCap.append(cache)
-            }
-            else
-                firstCap.innerHTML += `   ${item2}   `
-
-        secondCap.innerText = item[1]
-        zeroCap.append(firstCap, secondCap)
-        document.querySelector('.wrapper_info_table').append(zeroCap)
-    }
-}
 
 function reDefineTaskColor () {
     if (localStorage.getItem('currentTheme') === 'light')
@@ -103,25 +77,11 @@ function toGenerateGettingColorBlock(_Fitem) {
         _Fitem.querySelectorAll('div').forEach((item, index) => item.style.backgroundColor = darkThemeArray[index])
 }
 
-wrapperMain.addEventListener('click', toCloseClose) // for get rid of edit window
-wrapperTaskTitle.addEventListener('keypress', keyHandlerTitle)
-wrapperTaskTitle.addEventListener('input', toChangeDate)
-wrapperTaskTask.addEventListener('keypress', keyHandlerTitle)
-wrapperTaskTask.addEventListener('input', toChangeDate)
-document.querySelector('div[data-title="to save task"]').addEventListener('click', () => {
-    saveIt();
-    toCloseWindow()
-    setLSTask()})
-
-document.querySelector('.topBar_info').addEventListener('click', closer)
-document.querySelector('.topBar_add').addEventListener('click', closer)
-document.querySelector('.topBar_trash').addEventListener('click', closer)
-
 function switchTheme() {
     let
         forSwitcher = localStorage.getItem('currentTheme')
     document.querySelector('.null').classList.add(`to${forSwitcher}`)
-    setTimeout(() => document.querySelector('.null').classList.remove(`to${forSwitcher}`), 2000)
+    setTimeout(() => document.querySelector('.null').classList.remove(`to${forSwitcher}`), animDuration * 8)
 
     setTimeout(() => {
         if (localStorage.getItem('currentTheme') === 'light')
@@ -130,15 +90,15 @@ function switchTheme() {
             localStorage.setItem('currentTheme', 'light')
 
         document.querySelectorAll('.gettingColor').forEach(item => toGenerateGettingColorBlock(item))
-        document.querySelector('#toSwitchTheme').href = `styles/${localStorage.getItem('currentTheme')}.css`
-    }, 500)
+        document.querySelector('#toSwitchTheme').href = `css/${localStorage.getItem('currentTheme')}.css`
+    }, animDuration * 2)
 
     setTimeout(() => {
         reDefineTaskColor()
         setLSTrashTasks()
         setLSTask()
         toShowPopUpMessage(`App has switched to ${localStorage.getItem('currentTheme')} theme`)
-    }, 1000)
+    }, animDuration * 4)
 
 }
 
@@ -172,7 +132,7 @@ function toRemoveAllDoneTask() {
                 clearInterval(sequence)
                 document.querySelector('#bottomBar_delete')
             }
-        }, 300)
+        }, animDuration)
 
     sequence
     document.querySelector('.topBar_deleteAll').removeAttribute('style')
@@ -213,7 +173,6 @@ function saveIt() {
         }
         return
     }
-    // createMode = false
     reWriteTask()
 
     if (currTask.byList) {
@@ -305,12 +264,9 @@ function byListChangeCondition() {
     }
     else
     {
-        currTask.byListDoneTasks.splice(currTask.byListDoneTasks.indexOf(byListCurrPos), 1)
         byListConditionClearly(event.target, byListCurr, false)
+        currTask.byListDoneTasks.splice(currTask.byListDoneTasks.indexOf(byListCurrPos), 1)
     }
-
-    console.log(currTask.byListDoneTasks)
-    console.log(currTask.byListTreeview[byListCurrPos])
 
     setLSTask()
 }
@@ -507,11 +463,11 @@ function byListToTreeview(isToLeft) {
     // debugger
     if (isToLeft)
     {
-        if (currTask.byListTreeview[byListCurrPos] > 0 )        //первая строка несокрушима
-            if (currTask.byListTreeview[byListCurrPos + 1] > currTask.byListTreeview[byListCurrPos])        // если нижние элементы более вложены, двигать и их тоже, иначе только текущий
+        if (currTask.byListTreeview[byListCurrPos] > 0 )        // first line unbreakable
+            if (currTask.byListTreeview[byListCurrPos + 1] > currTask.byListTreeview[byListCurrPos])        // if there are nesting - it is necessary to move child element, otherwise only current
             {    
                 for (let i = byListCurrPos + 1; i < currTask.byListTreeview.length; i++)        
-                    if (currTask.byListTreeview[i] > currTask.byListTreeview[byListCurrPos] )     //двигаем только до пределенной поры
+                    if (currTask.byListTreeview[i] > currTask.byListTreeview[byListCurrPos] )
                         currTask.byListTreeview[i] -= 1
                     else
                         break
@@ -522,11 +478,11 @@ function byListToTreeview(isToLeft) {
     }       
     else
     {
-        if (currTask.byListTreeview[byListCurrPos - 1] - currTask.byListTreeview[byListCurrPos] >= 0)        // между позициями не может быть двойного расстояния
-            if (currTask.byListTreeview[byListCurrPos + 1] > currTask.byListTreeview[byListCurrPos])        // если нижние элементы более вложены, двигать и их тоже, иначе только текущий
+        if (currTask.byListTreeview[byListCurrPos - 1] - currTask.byListTreeview[byListCurrPos] >= 0)        //  there should not be a double distance between the positions
+            if (currTask.byListTreeview[byListCurrPos + 1] > currTask.byListTreeview[byListCurrPos])        // if child elements are nesting - it is necessary to move it, otherwise only current
             {
                 for (let i = byListCurrPos + 1; i < currTask.byListTreeview.length; i++)        
-                    if (currTask.byListTreeview[i] > currTask.byListTreeview[byListCurrPos] )     //двигаем только до пределенной поры
+                    if (currTask.byListTreeview[i] > currTask.byListTreeview[byListCurrPos] ) 
                         currTask.byListTreeview[i] += 1
                     else
                         break
@@ -539,7 +495,6 @@ function byListToTreeview(isToLeft) {
 }
 
 function byListManage(event) {
-    // debugger
     if (event.key === 'ArrowUp')
         byListSwapLines(-1)
 
@@ -572,11 +527,8 @@ function byListCreateElements(target, _fItem = currTask) {
 }
 
 function byList() {
-    if (document.querySelector('div[data-title="to cancel task"]'))
-        document.querySelector('div[data-title="to cancel task"]').remove()
-
+    document.querySelector('div[data-title="to cancel task"]').style.display = 'none'
     document.querySelector('div[data-title="to by list"]')?.setAttribute('data-title', 'to not by list')
-
     wrapperTaskTask.setAttribute('contenteditable', false)
     wrapperTaskTask.addEventListener('dblclick', byListAddLine)
     byListCreateElements(wrapperTaskTask)
@@ -585,15 +537,12 @@ function byList() {
 }
 
 function notByList() {
-    if (!document.querySelector('div[data-title="to cancel task"]'))
-        document.querySelector('div[data-title="to save task"]').after(createSomeElement('div', [], { 'data-title': 'to cancel task' }, { 'click': cancelIt }))
-
-    wrapperTaskTask.setAttribute('contenteditable', true)
-    document.querySelector('div[data-title="to not by list"]')?.setAttribute('data-title', 'to by list')
-
     let
         cacheTask = []
 
+    document.querySelector('div[data-title="to cancel task"]').removeAttribute('style')
+    document.querySelector('div[data-title="to not by list"]')?.setAttribute('data-title', 'to by list')
+    wrapperTaskTask.setAttribute('contenteditable', true)
     wrapperTaskTask.querySelectorAll('input[type="text"]').forEach(item => cacheTask.push(item.value))
     wrapperTaskTask.innerHTML = cacheTask.join('<br>')
     wrapperTaskTask.removeEventListener('dblclick', byListAddLine)
@@ -720,7 +669,6 @@ function pinIt() {
 }
 
 function copyIt(fromMenu) {
-    // debugger
     let
         wTitle = null,
         wTask = null
@@ -839,6 +787,21 @@ function toDetermineColor() {
     setLSTask()
 }
 
+function toCalculateTasksWidth() {
+    if (parseInt(getComputedStyle(document.body).width) >= 621)
+    {
+        taskWidth = 250
+        taskGap = 10
+        totalTaskWidth = taskWidth + taskGap
+    }
+    else
+    {
+        taskWidth = 150
+        taskGap = 10
+        totalTaskWidth = taskWidth + taskGap
+    }
+}
+
 function getTaskPos() {
     let
         pinnedLSTasks = localStorage.getItem('lsPinnedTasks') ? JSON.parse(localStorage.getItem('lsPinnedTasks')) : [],
@@ -857,7 +820,7 @@ function getTaskPos() {
     { 
         if (i >= totalTasksInRow)
             currRow = i % totalTasksInRow === 0 ? currRow + 1 : currRow
-        // debugger
+
         currTask = document.getElementById(pinnedLSTasks[i]).closest('.task')
         currOffset = getPinnedTransform(i, currRow, currTask)
     }
@@ -883,7 +846,6 @@ function getTaskPos() {
         document.querySelector('.tasks').style.height = `${currOffset + 40}px`
 
     function getPinnedTransform(i, currRow, currTask) {
-        // debugger
         switch (currRow) {
             case 0:
                 if (i === 0)
@@ -911,7 +873,6 @@ function getTaskPos() {
     }
 
     function getOrdinaryTransform(i, currRow, currTask) {
-        // debugger
         switch (currRow){
             case 0:
                 if (i === 0)
@@ -1013,21 +974,18 @@ function closerTask() {
         byList()
         byListToDisplayTreeview(wrapperTaskTask)
     }
-    else
-        document.querySelector('div[data-title="to not by list"]')?.setAttribute('data-title', 'to by list')
-        // document.querySelector('div[data-title="task by list"]').style.backgroundImage = "url('img/byList.png')"  
 }
 
 function closerAddTask() {
     document.body.addEventListener('keydown', hotKey)
 
-    // debugger
     createMode = true
-    if (document.querySelector('div[data-title="to not by list"]'))
+    if (document.querySelector('div[data-title="to cancel task"]').style.display === 'none')
     {
         document.querySelector('div[data-title="to not by list"]')?.setAttribute('data-title', 'to by list')
-        document.querySelector('div[data-title="to save task"]').after(createSomeElement('div', [], { 'data-title': 'to cancel task' }, { 'click': cancelIt }))
+        document.querySelector('div[data-title="to cancel task"]').removeAttribute('style')
     }
+
     document.querySelector('div[data-title="to unpin task"]')?.setAttribute('data-title', 'to pin task')
 
     createTask({})
@@ -1065,7 +1023,11 @@ function toEmptyTrash() {
 function removeItemFromTrash() {
     let
         chosenItem = event.target.closest('.wrapper_trash_tasks_task')
-        chosenItemIndex = parseInt(event.target.getAttribute('id'))
+        chosenItemIndex = null
+
+    document.querySelectorAll('.wrapper_trash_tasks > div').forEach((item, index) => {
+        if (item === event.target.closest('.wrapper_trash_tasks_task'))
+            chosenItemIndex = index})
 
     chosenItem.remove()
     objTrashTasks.splice(chosenItemIndex, 1)
@@ -1075,7 +1037,6 @@ function removeItemFromTrash() {
 
     checkTrash()
     setLSTrashTasks()
-    toReDisplayDeletedItems(chosenItemIndex)
     getTrashTaskPos()
     toShowPopUpMessage('Task has removed from trash')
 }
@@ -1083,7 +1044,12 @@ function removeItemFromTrash() {
 function getBackFromTrash() {
     let
         chosenItem = event.target.closest('.wrapper_trash_tasks_task')
-        chosenItemIndex = parseInt(event.target.getAttribute('id'))
+        chosenItemIndex = null
+
+    document.querySelectorAll('.wrapper_trash_tasks > div').forEach((item, index) => {
+        if (item === event.target.closest('.wrapper_trash_tasks_task'))
+            chosenItemIndex = index
+    })
 
     chosenItem.remove()
     createTask(Object.assign({}, ...objTrashTasks.splice(chosenItemIndex, 1)))
@@ -1092,25 +1058,14 @@ function getBackFromTrash() {
     if (objTrashTasks.length === 0)
         toCloseWindow()
 
-    toDisplayHowToAdd()
-    checkTrash()
     setLSTask()
     setLSPinnedTask()
     setLSTrashTasks()
     getTaskPos()
-    toReDisplayDeletedItems(chosenItemIndex)
+    toDisplayHowToAdd()
+    checkTrash()
     getTrashTaskPos()
     toShowPopUpMessage('Task has restored successfully')
-}
-
-function toReDisplayDeletedItems(currStartPos) {
-    let elems = document.querySelectorAll('.wrapper_trash_tasks_task_getBack')
-
-    for (let i = currStartPos; i < elems.length; i++)
-    {
-        elems[i].setAttribute('id', i)
-        elems[i].nextElementSibling.setAttribute('id', i)
-    }
 }
 
 function toDisplayDeletedItems() {
@@ -1127,9 +1082,6 @@ function toDisplayDeletedItems() {
 
         taskDivTitle.innerHTML = title
         taskDivTask.innerHTML = task.join(', ')
-
-        if (title.length !== 0)
-            taskDivTask.style.paddingLeft = '15px'
 
         if (pin)
             taskDivPin.classList.add('wrapper_trash_tasks_task_pin_pinned')
@@ -1190,18 +1142,6 @@ function closer() {
     }
 }
 
-function toCountDoneTasks() {
-    doneTaskCounter = document.querySelectorAll('.doneTask').length
-
-    if (doneTaskCounter > 0)
-    {
-        document.querySelector('.topBar_deleteAll').addEventListener('click', toRemoveAllDoneTask)
-        document.querySelector('.topBar_deleteAll').style.opacity = '1'
-    }
-    else
-        document.querySelector('.topBar_deleteAll').removeAttribute('style')
-}
-
 function notDoneTask() {
     crucialTask.querySelector('.overButtons').addEventListener('click', overButtons)
     crucialTask.querySelector('.overButtons').style.display = 'flex'
@@ -1216,7 +1156,6 @@ function notDoneTask() {
 }
 
 function doneTask(doneTask = crucialTask) {
-    // debugger
     toDetermineCrucial(doneTask)
 
     crucialTask.querySelector('.overButtons').style.display = 'none'
@@ -1225,7 +1164,6 @@ function doneTask(doneTask = crucialTask) {
     crucialTask.querySelector('.taskDivPin').style.display = 'none'
 
     document.querySelectorAll('.task_task input[type="checkbox"]').forEach(item => item.setAttribute('disabled', 'true'))
-
     currTask.done = true
 }
 
@@ -1258,8 +1196,8 @@ function createSomeElement(element = '', styleClass = [], attributes = {}, event
     return cache
 }
 
-function addTask(currTask) {
-    let { title, task, date, color, done, pin, byList } = currTask,
+function addTask({ title, task, date, color, done, pin, byList }) {
+    let
         taskDiv = createSomeElement('div', ['task'], { 'id': `${taskCounter}`, 'style': `background-color: ${color}` }, { 'click': closer, 'mouseleave': popDownOverButtons })
         taskDivTitle = createSomeElement('div', ['task_title']), // TITLE
         taskDivTask = createSomeElement('div', ['task_task']), // TASK
@@ -1372,73 +1310,29 @@ function createTask(pile) {
     })
 }
 
-async function exit() {
+function exit() {
     window.location.href = "about:home"
 }
 
-function toDisplayHowToAdd() {
-    if (taskCounter === 0)
-        document.querySelector('.helpElement').style.display = 'block'
-    else
-        document.querySelector('.helpElement').removeAttribute('style')
-}
-
-let nodeTimeout = setTimeout(() => document.querySelector('.popUpNotify').classList.remove('popUpNotifyAnim'), 3000)
-
 function toShowPopUpMessage(message) {
     let
-        nodeMessage = document.querySelector('.popUpNotify')
+        messageBlock = createSomeElement('div', ['popUpNotify'])
 
-    nodeMessage.innerText = message
+    document.querySelectorAll('.popUpNotify')?.forEach(item => item.style.display = 'none')
 
-    if (document.querySelector('.popUpNotifyAnim'))
-    {
-        nodeMessage.classList.remove('popUpNotifyAnim')
-        clearTimeout(nodeTimeout);
-    }
-
-    setTimeout(() => {
-        nodeMessage.classList.add('popUpNotifyAnim')
-        nodeTimeout
-    }, 0)
-}
-
-function onloadInit() {
-    document.body.addEventListener('keydown', bodyHotKey)
-    if (localStorage.getItem('lsTasks'))
-    {
-        objTasks = JSON.parse(localStorage.getItem('lsTasks'))
-
-        if (objTasks[objTasks.length - 1]?.title.length === 0 && objTasks[objTasks.length - 1]?.task.length === 0)
-            objTasks.pop()
-
-        if (objTasks.length > 0)
-            objTasks.forEach(item => addTask(item))
-        else
-            toDisplayHowToAdd()
-    }
-
-    if (!localStorage.getItem('currentTheme'))
-        localStorage.setItem('currentTheme', 'light')
-
-    document.querySelector('#toSwitchTheme').href = `styles/${localStorage.getItem('currentTheme')}.css`
-    toGenerateGettingColorBlock(wrapperMain.querySelector('.gettingColor'))
-
-    if (!localStorage.getItem('trash'))
-        localStorage.setItem('trash', JSON.stringify([]))
-    else
-        objTrashTasks = JSON.parse(localStorage.getItem('trash'))
+    messageBlock.innerText = message
+    document.body.append(messageBlock)
+    setTimeout(() => messageBlock.remove(), 3000)
 }
 
 function hotKey () {
     if (event.altKey && event.code === 'KeyS')
-        {
-            saveIt()
-            toCloseWindow()
-            setLSTask()
-            event.preventDefault()
-        }
-
+    {
+        saveIt()
+        toCloseWindow()
+        setLSTask()
+        event.preventDefault()
+    }
     if (currTask.byList)
     {
         if (event.code === "BracketLeft" && event.ctrlKey)
@@ -1470,25 +1364,118 @@ function bodyHotKey () {
     }
 }
 
+function toCountDoneTasks() {
+    doneTaskCounter = document.querySelectorAll('.doneTask').length
+
+    if (doneTaskCounter > 0)
+    {
+        document.querySelector('.topBar_deleteAll').addEventListener('click', toRemoveAllDoneTask)
+        document.querySelector('.topBar_deleteAll').style.opacity = '1'
+    }
+    else
+        document.querySelector('.topBar_deleteAll').removeAttribute('style')
+}
+
+function toGenerateInfoBlock() {
+    let
+        specialSymbols = ['+', '/', 'KEY']
+    for (let item of howToUseMap)
+    {
+        let
+            zeroCap = createSomeElement('div', ['wrapper_info_table_cap']),
+            firstCap = createSomeElement('div'),
+            secondCap = createSomeElement('div')
+
+        for (let item2 of item[0])
+            if (!specialSymbols.includes(item2))
+            {
+                let
+                    cache = createSomeElement('span')
+
+                cache.innerText = item2
+                firstCap.append(cache)
+            }
+            else
+                firstCap.innerHTML += `   ${item2}   `
+
+        secondCap.innerText = item[1]
+        zeroCap.append(firstCap, secondCap)
+        document.querySelector('.wrapper_info_table').append(zeroCap)
+    }
+}
+
+function toDisplayHowToAdd() {
+    if (taskCounter === 0)
+        document.querySelector('.helpElement').style.display = 'block'
+    else
+        document.querySelector('.helpElement').removeAttribute('style')
+}
+
+function onloadInit() {
+    document.body.addEventListener('keydown', bodyHotKey)       // for shift + N to create new task
+    wrapperMain.addEventListener('click', toCloseClose)     // for get rid of edit window
+    wrapperTaskTitle.addEventListener('keypress', keyHandlerTitle)
+    wrapperTaskTitle.addEventListener('input', toChangeDate)
+    wrapperTaskTask.addEventListener('keypress', keyHandlerTitle)
+    wrapperTaskTask.addEventListener('input', toChangeDate)
+    document.querySelector('div[data-title="to save task"]').addEventListener('click', () => {
+        saveIt();
+        toCloseWindow()
+        setLSTask()})
+
+    document.querySelector('.topBar_info').addEventListener('click', closer)
+    document.querySelector('.topBar_add').addEventListener('click', closer)
+    document.querySelector('.topBar_trash').addEventListener('click', closer)
+
+    if (localStorage.getItem('lsTasks'))
+    {
+        objTasks = JSON.parse(localStorage.getItem('lsTasks'))
+
+        if (objTasks[objTasks.length - 1]?.title.length === 0 && objTasks[objTasks.length - 1]?.task.length === 0)
+            objTasks.pop()
+
+        if (objTasks.length > 0)
+            objTasks.forEach(item => addTask(item))
+    }
+
+    if (!localStorage.getItem('currentTheme'))      // executting current theme
+        localStorage.setItem('currentTheme', 'light')
+
+    document.querySelector('#toSwitchTheme').href = `css/${localStorage.getItem('currentTheme')}.css`       // to apply current theme
+    toGenerateGettingColorBlock(wrapperMain.querySelector('.gettingColor'))     // based on this - change general color
+
+    if (!localStorage.getItem('trash'))
+        localStorage.setItem('trash', JSON.stringify([]))
+    else
+        objTrashTasks = JSON.parse(localStorage.getItem('trash'))
+}
+
+function eraseDocument() {
+    document.body.innerHTML= ''     // if platform douesn't support
+    let eraseBlock = createSomeElement('div', ['eraseBlock'])
+    eraseBlock.innerText = `This app doesn\'t support platform \"${navigator.userAgent.split('(')[1].split(' ')[0]}\" yet`
+    document.body.append(eraseBlock)
+}
+
+window.onload = function() {
+    if (platforms.includes(navigator.userAgent.split('(')[1].split(' ')[0]))
+        eraseDocument()
+    else
+    {
+        toCalculateTasksWidth()
+        onloadInit()
+        toDisplayHowToAdd()
+        toGenerateInfoBlock()
+        toCountDoneTasks()
+        checkTrash()
+        toAlignTasks()
+    }
+}
+
 window.onresize = function() {
+    toCalculateTasksWidth()
     getTaskPos()
     toAlignTasks()
 }
 
-window.onload = function() {
-    onloadInit()
-    toGenerateInfoBlock()
-    toCountDoneTasks()
-    checkTrash()
-    toAlignTasks()
-}
-
-
-// шрифт
-
 // завязать весь css на переменные, полностью весь
-// как-то убрать выделение из wrapper'a
-
-// оптимизировать скорость запуска сайта
-
-// адаптация
