@@ -1307,7 +1307,7 @@ function closerTask() {
     wrapperTask.style.display = 'block'
 
     wrapperTaskTitle.value = currTask.title
-    wrapperTaskTitle.focus()
+    // wrapperTaskTitle.focus()
     wrapperTaskTask.innerHTML = currTask.task.join('<br>')
     wrapperTaskDate.innerText = currTask.date
 
@@ -1347,7 +1347,7 @@ function closerAddTask() {
 
     wrapperTask.style.display = 'block'
     wrapperTaskTitle.value = ''
-    wrapperTaskTitle.focus()
+    // wrapperTaskTitle.focus()
     wrapperTaskTask.innerText = ''
     wrapperTaskDate.innerText = currTask.date
     wrapperTask.scrollLeft = 0
