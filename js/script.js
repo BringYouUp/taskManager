@@ -1779,7 +1779,6 @@ function hotKey () {
 }
 
 function bodyHotKey () {
-    console.log(event.altKey)
     if (event.altKey && event.code === 'KeyN')
     {
         event.preventDefault()
