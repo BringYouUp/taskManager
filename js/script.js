@@ -3,9 +3,12 @@ let
     doneTaskCounter = 0,        // amount done tasks
     crucialTask = null,     // active task in DOM
     crucialTaskNum = null,      // num of active task in DOM
+    crucialDragTask = null,
     currTask = null,        // active task
+    chosenCategory = localStorage.getItem('chosenCategory') ? JSON.parse(localStorage.getItem('chosenCategory')) : ['None', 0]
 
     createMode = false,     // for closerAddTask
+    cacheIndexOfCategoryColor = 0       // for saving color of categories
 
     itWasByList = null,     // cache variable
     byListCurr = null,      // active line in DOM (byList MODE)
@@ -13,11 +16,12 @@ let
 
     animDuration = 250      // default duration of all animations
     taskWidth = 0       // changing value occurs in function toCalculateTasksWidth
-    taskGap = 0,        // gap between tasks
+    taskGap = 10,        // gap between tasks
     totalTaskWidth = taskWidth + taskGap,       // for function getTaskPos
-    byListTreeviewMargin = 25
+    byListTreeviewMargin = 25       //  for margin treeview  in byList mode
     totalWidth = document.documentElement.clientWidth,
     totalTasksInRow = Math.trunc(totalWidth / totalTaskWidth),
+    isDecrease = document.body.clientWidth,     // for resizing optimization
 
     wrapperMain = document.querySelector('.wrapper'),
     wrapperInfo = document.querySelector('.wrapper_info'),
@@ -30,11 +34,13 @@ let
 
     objTasks = [],      // all ordinary tasks will be here
     objTrashTasks = [],     // all deleted tasks will be here
+    allPinnedTasks = document.querySelector('.pinnedTasks').childNodes      // for having always relevant arr
+    allOrdinaryTasks = document.querySelector('.tasks').childNodes      // for having always relevant arr
 
     howToUseMap = new Map([
         [['KEY'], 'DESCRIPTION'],
         [['Alt', '+', 'S'], 'save task'],
-        [['Shift', '+', 'S'], 'add new task'],
+        [['Shift', '+', 'N'], 'add new task'],
         [['↑', '/', '↓'], 'switch between lines in LIST MODE'],
         [['Ctrl', '+','[' , '/', ']'], 'for creatig subtasks in LIST MODE'],
         [['Enter' , '/',  'Double click'], 'add new line under active line in LIST MODE'],
@@ -43,63 +49,238 @@ let
         [['Shift' , '+', 'Del'], 'delete active line with subtasks in LIST MODE'],
     ]),
 
-    lightThemeArray = ['rgb(245, 245, 245)', 'rgb(255,127,127)', 'rgb(255, 196, 87)', 'rgb(255, 255, 153)','rgb(215, 254, 178)', 'rgb(127, 191, 127)', 'rgb(176, 223, 242)', 'rgb(140, 140, 255)', 'rgb(198, 140, 198)'], 
+    lightThemeArray = ['rgb(245, 245, 245)', 'rgb(255, 127, 127)', 'rgb(255, 196, 87)', 'rgb(255, 255, 153)','rgb(215, 254, 178)', 'rgb(127, 191, 127)', 'rgb(176, 223, 242)', 'rgb(140, 140, 255)', 'rgb(198, 140, 198)'], 
     darkThemeArray = ['rgb(48, 48, 48)', 'rgb(51, 0, 0)', 'rgb(64, 41, 0)', 'rgb(64, 64, 0)', 'rgb(31, 63, 0)', 'rgb(0, 32, 0)', 'rgb(41, 62, 71)', 'rgb(0, 0, 38)', 'rgb(39, 0, 39)'],
-    platforms = ['Android', 'webOS', 'iPhone', 'iPad', 'iPod', 'BlackBerry', 'BB', 'PlayBook', 'IEMobile','Windows Phone']
-    // if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent)) {
+    currTheme = localStorage.getItem('currentTheme'),
+    currThemeArray = currTheme === 'light' ? lightThemeArray : darkThemeArray,      // current array with colors in relation to current theme
+    categories = localStorage.getItem('categories') ? JSON.parse(localStorage.getItem('categories')) : [['None', 0], ['Home', 1], ['Work', 2]] 
 
+function removeCacheCategory(targetArr, cacheCategory) {        // removing category from obj Tasks
+    targetArr.forEach(item => {
+        if (item.category === cacheCategory)
+            item.category = categories[0][0]
+    })
+}
 
-function reDefineTaskColor () {
-    if (localStorage.getItem('currentTheme') === 'light')
+function removeCategory() {     // removing category
+    let
+        cacheCategory = event.target.previousSibling.textContent
+
+    event.stopPropagation()
+    document.querySelector('.topBar_categories_parent').childNodes.forEach((item, index) =>
     {
-        document.querySelectorAll('.task').forEach(item => {
-            let arrIndex = +item.getAttribute('id')
-            objTasks[arrIndex].color = lightThemeArray[darkThemeArray.indexOf(objTasks[arrIndex].color)]
-            item.style.backgroundColor = objTasks[arrIndex].color
+        if (event.target.closest('.topBar_categories_parent_child') === item)
+        {
+            if (cacheCategory === chosenCategory[0])
+            {
+                chosenCategory = Array(...categories[0])
+                toHideUnChosen()
+                getTaskPos()
+                toCalculateOffset()
+                toDisplayChosenCategory(document.querySelector('.topBar_categories_parent_child_label').previousSibling)
+                localStorage.setItem('chosenCategory', JSON.stringify(chosenCategory))
+            }
+            item.remove()
+            categories.splice(index, 1)
+
+            toShowPopUpMessage(`Removed "${cacheCategory}" category`)
+            removeCacheCategory(objTasks, cacheCategory)
+            removeCacheCategory(objTrashTasks, cacheCategory)
+            setLSTask()
+        }
+    })
+    toGenerateCategories(document.querySelector('div[data-title="to choose category"]'))
+}
+
+function keyPressCategory() {       // addCategory div shouldn't change its height
+    if (event.code === 'Enter')
+        event.preventDefault()
+}
+
+function toChooseCategoryColor() {      // category color selection
+    if (event.target.getAttribute('class') === '')
+        event.target.parentElement.childNodes.forEach((item, index) => 
+        {
+            if (event.target === item)
+            {
+                cacheIndexOfCategoryColor = index
+                document.querySelector('.category_add').previousSibling.style.backgroundColor = currThemeArray[index]
+                document.querySelector('.topBar_categories_parent_child_label[contenteditable="true"]').focus()
+            }
         })
-        objTrashTasks.forEach((item => item.color = lightThemeArray[darkThemeArray.indexOf(item.color)]))
+}
+
+function saveNewCategory() {        // to add new category to list 
+    let
+        newCategory = event.target.nextElementSibling
+
+    event.stopPropagation()
+    document.querySelector('.topBar_categories_parent_child_color').remove()        // remove block for adjust category color
+    
+    if (event.target.nextElementSibling.innerText.trim().length > 0)
+    {
+        categories.push([newCategory.innerText, cacheIndexOfCategoryColor])
+        newCategory.addEventListener('click', toChooseCurrentCategory)
+        newCategory.removeAttribute('contenteditable')
+
+        event.target.removeEventListener('click', saveNewCategory)
+        event.target.classList = []
+        cacheIndexOfCategoryColor = 0
+
+        toGenerateCategories(document.querySelector('div[data-title="to choose category"]'))
+        toShowPopUpMessage(`Added new category "${newCategory}"`)
+        setLSTask()
     }
     else
+        event.target.parentElement.remove()
+}
+
+function addNewCategory() {     // creating block for adding and saving new category
+    event.stopPropagation()
+    let
+        catChild = createSomeElement('div', ['topBar_categories_parent_child']),
+        catChildActive = createSomeElement('div', ['topBar_categories_parent_child_add_image'], {}, [['click', saveNewCategory]])
+        catChildLabel = createSomeElement('div', ['topBar_categories_parent_child_label'], {'contenteditable': true}, [['keypress', keyPressCategory]])
+        catChildRemove = createSomeElement('div', ['topBar_categories_parent_child_remove'], {}, [['click', removeCategory]])
+        catChildColor = createSomeElement('div', ['topBar_categories_parent_child_color'], {}, [['click', toChooseCategoryColor]])
+
+    for (let i = 0; i < lightThemeArray.length; i++)
+        catChildColor.append(createSomeElement('div'))
+
+    toGenerateGettingColorBlock(catChildColor)
+
+    catChild.append(catChildActive, catChildLabel, catChildRemove, catChildColor)
+    setTimeout(() => catChildLabel.focus(), 0)
+    document.querySelector('.category_add').before(catChild)
+}
+
+
+function toHideUnChosen() {     // to change of tasks visibility and hiding it
+    document.querySelectorAll('.task').forEach(item => item.style.display = 'block')
+ 
+    if (chosenCategory[0] !== categories[0][0])
     {
-        document.querySelectorAll('.task').forEach(item => {
-            let arrIndex = +item.getAttribute('id')
-            objTasks[arrIndex].color = darkThemeArray[lightThemeArray.indexOf(objTasks[arrIndex].color)]
-            item.style.backgroundColor = objTasks[arrIndex].color
+        objTasks.forEach((item, index) => {
+            if (item.category !== chosenCategory[0])
+                document.getElementById(index).style.display = 'none'   
         })
-        objTrashTasks.forEach(item => item.color = darkThemeArray[lightThemeArray.indexOf(item.color)])
     }
+    else
+        document.querySelectorAll('.task').forEach(item => item.style.display = 'block')
+}
+
+function toDisplayChosenCategory(divTarget) {
+    document.querySelector('.topBar .topBar_categories_parent_child_chose')?.classList.toggle('topBar_categories_parent_child_chose')
+    divTarget.classList.add('topBar_categories_parent_child_chose')
+}
+
+function toChooseCurrentCategory() {
+    let
+        cache = document.querySelector('.topBar_categories_parent_child_add_image')
+
+    if (cache && cache.nextElementSibling.innerText.trim().length === 0)
+        cache.parentElement.remove()
+    else
+    {        
+        chosenCategory[0] = event.target.innerText
+        chosenCategory[1] = (function() {
+            for (let item of categories)
+                if (item.includes(chosenCategory[0]))
+                    return item[1]
+        })()
+        localStorage.setItem('chosenCategory', JSON.stringify(chosenCategory))
+
+        toDisplayChosenCategory(event.target.previousSibling)
+        toShowPopUpMessage(`Chosen "${chosenCategory[0]}" category`)
+    }
+
+    toHideUnChosen()
+    getTaskPos()
+    toCalculateOffset()
+}
+
+function toInitCategories(major = document.querySelector('.topBar_categories')) {       // to create categories div
+    let
+        parent = createSomeElement('div', ['topBar_categories_parent'])
+    major.append(parent)
+
+    categories.forEach((item, index) =>
+    {
+        let
+            catChild = createSomeElement('div', ['topBar_categories_parent_child'], {}, []),
+            catChildActive = createSomeElement('div', [], {}, []),
+            catChildLabel = createSomeElement('div', ['topBar_categories_parent_child_label'], {}, [['click', toChooseCurrentCategory]]),
+            catChildRemove = createSomeElement('div', ['topBar_categories_parent_child_remove'], {}, [['click', removeCategory]])
+            catChild.style.backgroundColor = currThemeArray[item[1]]
+            catChildLabel.innerText = item[0]
+
+            if (index === 0)
+            {
+                catChildRemove.removeEventListener('click', removeCategory)
+                catChildRemove.classList = []
+            }
+            if (chosenCategory[0] === item[0])
+                catChildActive.classList.add('topBar_categories_parent_child_chose')
+
+            catChild.append(catChildActive, catChildLabel, catChildRemove)
+            parent.append(catChild)
+    })
+
+    let 
+        catChild = createSomeElement('div', ['topBar_categories_parent_child', 'category_add'], {}, [['click', addNewCategory]]),
+        catChildAddImg = createSomeElement('div'),
+        catChildAdd = createSomeElement('div', ['topBar_categories_parent_child_label'], {}, [])
+
+    catChildAdd.innerText = 'Add new category'
+    catChild.append(catChildAddImg, catChildAdd)
+    parent.append(catChild)
+}
+
+function reDefineTaskColor() {      // to change color in according to current theme
+    let
+        previousThemeArray = currTheme === 'light' ? darkThemeArray : lightThemeArray
+
+    document.querySelectorAll('.task').forEach(item => {
+        let arrIndex = +item.getAttribute('id')
+        objTasks[arrIndex].color = currThemeArray[previousThemeArray.indexOf(objTasks[arrIndex].color)]
+        item.style.backgroundColor = objTasks[arrIndex].color
+    })
+    objTrashTasks.forEach((item => item.color = currThemeArray[previousThemeArray.indexOf(item.color)]))
+    document.querySelectorAll('.topBar_categories_parent > div').forEach(item => item.style.backgroundColor = currThemeArray[previousThemeArray.indexOf(getComputedStyle(item).backgroundColor)])
+    document.querySelectorAll('.categories_parent > div').forEach(item => item.style.backgroundColor = currThemeArray[previousThemeArray.indexOf(getComputedStyle(item).backgroundColor)])
+
 }
 
 function toGenerateGettingColorBlock(_Fitem) {
-    if (localStorage.getItem('currentTheme') === 'light')
-        _Fitem.querySelectorAll('div').forEach((item, index) => item.style.backgroundColor = lightThemeArray[index])
-    else
-        _Fitem.querySelectorAll('div').forEach((item, index) => item.style.backgroundColor = darkThemeArray[index])
+    _Fitem.querySelectorAll('div').forEach((item, index) => item.style.backgroundColor = currThemeArray[index])
 }
 
 function switchTheme() {
     let
-        forSwitcher = localStorage.getItem('currentTheme')
+        forSwitcher = currTheme
+
     document.querySelector('.null').classList.add(`to${forSwitcher}`)
     setTimeout(() => document.querySelector('.null').classList.remove(`to${forSwitcher}`), animDuration * 8)
 
     setTimeout(() => {
-        if (localStorage.getItem('currentTheme') === 'light')
+        if (currTheme === 'light')
             localStorage.setItem('currentTheme', 'dark')
         else
             localStorage.setItem('currentTheme', 'light')
 
+        currTheme = localStorage.getItem('currentTheme')
+        currThemeArray = currTheme === 'light' ? lightThemeArray : darkThemeArray
+
         document.querySelectorAll('.gettingColor').forEach(item => toGenerateGettingColorBlock(item))
-        document.querySelector('#toSwitchTheme').href = `css/${localStorage.getItem('currentTheme')}.css`
+        document.querySelector('#toSwitchTheme').href = `css/${currTheme}.css`
     }, animDuration * 2)
 
     setTimeout(() => {
         reDefineTaskColor()
         setLSTrashTasks()
         setLSTask()
-        toShowPopUpMessage(`App has switched to ${localStorage.getItem('currentTheme')} theme`)
+        toShowPopUpMessage(`App has switched to ${currTheme} theme`)
     }, animDuration * 4)
-
 }
 
 function keyHandlerTitle() {
@@ -113,6 +294,13 @@ function toChangeDate() {
         currTask.date = `Changed ${getCurrentDate()}`
         wrapperTaskDate.innerText = currTask.date
     }
+}
+
+function activateMarquee(target = crucialTask.querySelector('.task_title')) {
+    target.querySelector('.task_title_marquee')?.classList.remove('task_title_marquee')
+
+    if (target.scrollWidth > target.clientWidth)
+        target.querySelector('span').classList.add('task_title_marquee')
 }
 
 function toRemoveAllDoneTask() {
@@ -139,7 +327,7 @@ function toRemoveAllDoneTask() {
     document.querySelector('.topBar_deleteAll').removeEventListener('click', toRemoveAllDoneTask)
 }
 
-function reWriteTask() {
+function reWriteTask() {        // to rewrite title, task in current task
     let
         newTitle = wrapperTaskTitle.value.trim(),
         newTask = currTask.byList ? currTask.byListTasks : wrapperTaskTask.innerText.split('\n')
@@ -150,11 +338,11 @@ function reWriteTask() {
     currTask.title = newTitle
     currTask.task = newTask
 
-    crucialTask.querySelector('.task_title').innerHTML = newTitle
+    crucialTask.querySelector('.task_title > span').textContent = newTitle
     crucialTask.querySelector('.task_task').innerHTML = newTask.join('<br>')
 }
 
-function saveIt() {
+function saveIt() {     // to save opened task
     let
         newTitle = wrapperTaskTitle.value.trim(),
         newTask = currTask.byList ? currTask.byListTasks : wrapperTaskTask.innerText.trim()
@@ -181,10 +369,12 @@ function saveIt() {
         byListToDisplayTreeview(crucialTask.querySelector('.task_task'))
     }
 
+    activateMarquee()
     getTaskPos()
+    toCalculateOffset()
 }
 
-function cancelIt() {
+function cancelIt() {       // to discard changes
     if (createMode)
     {
         objTasks.pop()
@@ -210,25 +400,38 @@ function cancelIt() {
     }
 }
 
-function toDetermineByList() {
-    byListCurr = event.target.type != 'checkbox' ? event.target : event.target.nextElementSibling.nextElementSibling
-    byListCurrPos = parseInt(byListCurr.classList[0])
+function toDetermineByList() {      // return current editing textarea
+    byListCurr = event.target.nodeName === 'TEXTAREA' || 'INPUT' ? event.target.parentElement.querySelector('textarea') : event.target.querySelector('textarea')
+
+    if (event.target.classList.contains('byListAddLine') || event.target.classList.contains('byListRemoveLine'))
+        byListCurr = event.target.parentElement.querySelector('textarea')
+
+    let 
+        parent = byListCurr.parentElement,
+        grandParent = parent.parentElement
+
+    for (let i = 0; i < grandParent.children.length; i++)
+        if (grandParent.children[i] == parent)
+            byListCurrPos = i
 }
 
 function byListReorder(target = wrapperTaskTask, _fItem = currTask) {
     _fItem.byListTasks = [],
     _fItem.byListDoneTasks = []
 
-    target.querySelectorAll('input[type="text"]')
+    target.querySelectorAll('textarea')
         .forEach((item, index) =>
         {
-            item.setAttribute('class', `${index}_list`)
-            target.querySelectorAll('input[type="checkbox"]')[index].setAttribute('class', `${index}_list`)
             _fItem.byListTasks.push(item.value)
 
-            if (item.disabled)
+            if (item.readOnly)
                 _fItem.byListDoneTasks.push(index)
         })
+}
+
+function toFocusedOnTextArea() {        // easy way to display active textarea in list mode
+    toDetermineByList()
+    this.closest('div').classList.add('activeTextArea')
 }
 
 function byListVoid() {
@@ -237,49 +440,80 @@ function byListVoid() {
         byListRemoveLine()
         setLSTask()
         byListReorder()
+        byListCurrPos = null
+    }
+    this.closest('div').classList.remove('activeTextArea')
+}
+
+function directlyBackspaceAreaResizing(target) {        // to change height of textareas if user presses 'backspace'
+    setTimeout(function() 
+    {
+        while(true)
+        {
+            if (target.scrollHeight === target.clientHeight)
+                target.style.height = parseInt(getComputedStyle(target).height) - 10 + 'px'
+            else
+            {
+                target.style.height = parseInt(getComputedStyle(target).height) + 10 + 'px'
+                break
+
+            }
+        }
+    }, 0)
+}
+
+function directlyAreaResizing(target) {     // to change height of textareas at the moment of input
+    let i = 0
+    while (true)
+    {
+        if(target.scrollHeight > target.clientHeight) 
+            target.style.height = parseInt(getComputedStyle(target).height) + 10 + 'px'
+        else
+            break
     }
 }
 
 function byListInput() {
     currTask.byListTasks[byListCurrPos] = byListCurr.value
+    directlyAreaResizing(event.target)
 }
 
 function byListConditionClearly(checkbox, aimTarget = byListCurr, checked) {
-    aimTarget.disabled = checked
+    checked ? aimTarget.setAttribute('readonly', checked) : aimTarget.removeAttribute('readonly')
     checkbox.checked = checked
     byListCurr = null
-}
+} 
 
 function byListChangeCondition() {
     let
         currCheckbox = event.target
 
     event.stopPropagation()
-    toDetermineByList(event)
+    toDetermineByList()
 
     if (currCheckbox.checked === true)
     {
-        byListConditionClearly(event.target, byListCurr, true)
+        byListConditionClearly(currCheckbox, byListCurr, true)
         currTask.byListDoneTasks.push(byListCurrPos)
     }
     else
     {
-        byListConditionClearly(event.target, byListCurr, false)
+        byListConditionClearly(currCheckbox, byListCurr, false)
         currTask.byListDoneTasks.splice(currTask.byListDoneTasks.indexOf(byListCurrPos), 1)
     }
 
     setLSTask()
 }
 
-function byListSwapLines(direction) {
+function byListSwapLines(direction) {       // advanced swap lines
     let
-        crucialNodeList = wrapperTaskTask.querySelectorAll('div')
-    //EXTENDED SWAP
+        crucialNodeList = wrapperTaskTask.children
+    
     if (direction === 1)        // to down
     {
         let
             posTo =  currTask.byListTreeview.indexOf(currTask.byListTreeview[byListCurrPos], byListCurrPos + 1),        // destination
-            posToNeighbour = currTask.byListTreeview.indexOf(currTask.byListTreeview[byListCurrPos], posTo + 1),        // for first step of enclosuse
+            posToNeighbour = currTask.byListTreeview.indexOf(currTask.byListTreeview[byListCurrPos], posTo + 1),        // for first step of enclosure
 
             targetsDiv = [],        // main TARGET of NODES 
             unrelevantTargetsDiv = []       // destination NODES
@@ -296,8 +530,8 @@ function byListSwapLines(direction) {
                     else
                         break
         
-                unrelevantTargetsDiv.unshift(crucialNodeList[posTo])        // alse need to add child from which started subCycle
-                targetsDiv.unshift(crucialNodeList[byListCurrPos])      // alse need to add child from which started cycle
+                unrelevantTargetsDiv.unshift(crucialNodeList[posTo])        // also need to add child from which started subCycle
+                targetsDiv.unshift(crucialNodeList[byListCurrPos])      // also need to add child from which started cycle
                 break
             }
 
@@ -316,10 +550,9 @@ function byListSwapLines(direction) {
                 if (posToNeighbour != -1)
                     crucialNodeList[posTo + unrelevantTargetsDiv.length].before(...targetsDiv)
                 else
-                    wrapperTaskTask.querySelectorAll('div')[wrapperTaskTask.querySelectorAll('div').length - 1].before(...targetsDiv)
+                    wrapperTaskTask.children[wrapperTaskTask.children.length - 1].before(...targetsDiv)
             }
         }
-        targetsDiv[0].querySelector('input[type="text"]').focus()
     }
     else        //unless to down
     {
@@ -356,10 +589,8 @@ function byListSwapLines(direction) {
             else
             {
                 crucialNodeList[posTo].before(...targetsDiv)
-                wrapperTaskTask.querySelectorAll('div')[byListCurrPos + targetsDiv.length - 1].after(...unrelevantTargetsDiv)
-
+                wrapperTaskTask.children[byListCurrPos + targetsDiv.length - 1].after(...unrelevantTargetsDiv)
             }
-            targetsDiv[0].querySelector('input[type="text"]').focus()
         }
     }
 
@@ -368,21 +599,30 @@ function byListSwapLines(direction) {
     byListToDisplayTreeview(wrapperTaskTask)
     toDetermineByList()
     setTimeout(() => byListCurr.select(), 0)
+    console.log(currTask.byListTreeview)
 }
 
 function byListRewriteDoneLines() {
+    let
+        textareas = wrapperTaskTask.querySelectorAll('textarea')
+
     currTask.byListDoneTasks = []
-    wrapperTaskTask.querySelectorAll('input[disabled]').forEach(item => currTask.byListDoneTasks.push(parseInt(item.classList[0])))
+
+    for (let i = 0; i < textareas.length; i++)
+        if (textareas[i].readOnly)
+            currTask.byListDoneTasks.push(i)
 }
 
 function byListRemoveLine(withShift = false) {
+    event.stopPropagation()
+    toDetermineByList()
     let
         oldPos = +currTask.byListTreeview[byListCurrPos],
         arrayLength = currTask.byListTasks.length
 
     currTask.byListTasks.splice(byListCurrPos, 1)
     currTask.byListTreeview.splice(byListCurrPos, 1)
-    byListCurr.closest('div').remove()
+    byListCurr.parentElement.remove()
 
     if (withShift)
     {
@@ -390,7 +630,7 @@ function byListRemoveLine(withShift = false) {
             if (currTask.byListTreeview[i] > oldPos)
             {
                 currTask.byListTreeview.splice(i, 1)
-                wrapperTaskTask.querySelectorAll('div')[i].remove()
+                wrapperTaskTask.children[i].remove()
             }
             else
                 break
@@ -404,38 +644,41 @@ function byListRemoveLine(withShift = false) {
                 break
     }
 
-
     if (currTask.byListTasks.length === 0)
     {
         notByList()
         currTask.byList = false
     }
     else
-        wrapperTaskTask.querySelectorAll('input[type="text"]')[byListCurrPos]?.focus()
+        wrapperTaskTask.querySelectorAll('textarea')[byListCurrPos]?.focus()
 
     byListReorder()
     byListRewriteDoneLines()
-    byListToDisplayTreeview(wrapperTaskTask)
     byListTreeviewReorder()
+    byListToDisplayTreeview(wrapperTaskTask)
     setLSTask()
 }
 
 function byListAddLine() {
-    if (event.shiftKey && wrapperTaskTask.querySelectorAll('input[type="text"]')[byListCurrPos + 1])
+    event.stopPropagation()
+    toDetermineByList()
+    if (event.shiftKey && wrapperTaskTask.querySelectorAll('textarea')[byListCurrPos + 1])
     {
-        wrapperTaskTask.querySelectorAll('input[type="text"]')[byListCurrPos + 1].focus()
+        wrapperTaskTask.querySelectorAll('textarea')[byListCurrPos + 1].focus()
         return
     }
 
-    byListCurr = byListCurr ? byListCurr : wrapperTaskTask.querySelectorAll('input[type="text"]')[currTask.byListTasks.length - 1]
+    byListCurr = byListCurr ? byListCurr : wrapperTaskTask.querySelectorAll('textarea')[currTask.byListTasks.length - 1]
 
     let
-        listDiv = createSomeElement('div', [], {}, { 'click': toDetermineByList }),
-        listCheckbox = createSomeElement('input', [], { 'type': 'checkbox' }, { 'click': byListChangeCondition }),
+        listDiv = createSomeElement('div', [], {}, [['click', toDetermineByList]]),
+        listCheckbox = createSomeElement('input', [], { 'type': 'checkbox' }, [['click', byListChangeCondition]]),
         listLabel = createSomeElement('label', []),
-        listInput = createSomeElement('input', [], { 'type': 'text', 'id': `${byListCurrPos + 1}_list`}, { 'keydown': byListManage, 'click': toDetermineByList, 'focus': toDetermineByList, 'input': byListInput, 'blur': byListVoid })
+        listTextarea = createSomeElement('textarea', [], {}, [['keydown', byListManage], ['input', byListInput], ['blur', byListVoid], ['focus', toFocusedOnTextArea]]),
+        listDivAdd = createSomeElement('div', ['byListAddLine'], {}, [['click', byListAddLine]]),
+        listDivRemove = createSomeElement('div', ['byListRemoveLine'], {}, [['click', byListRemoveLine]])
 
-    listDiv.append(listCheckbox, listLabel, listInput)
+    listDiv.append(listCheckbox, listLabel, listTextarea, listDivAdd, listDivRemove)
     byListCurr.closest('div').after(listDiv)
     currTask.byListTasks.splice(byListCurrPos, 0, '')
     currTask.byListTreeview.splice(byListCurrPos, 0, currTask.byListTreeview[byListCurrPos])
@@ -445,22 +688,22 @@ function byListAddLine() {
     setLSTask()
     byListToDisplayTreeview(wrapperTaskTask)
 
-    listInput.focus()
-    event.stopPropagation()
+    listTextarea.focus()
 }
 
-function byListTreeviewReorder() {
+function byListTreeviewReorder() {      // to recreate elements of tasks in list mode
     currTask.byListTreeview = []
-    wrapperTaskTask.querySelectorAll('div').forEach(item => currTask.byListTreeview.push(parseInt(getComputedStyle(item).marginLeft) / byListTreeviewMargin))
+
+    for (let i = 0; i < wrapperTaskTask.children.length; i++)
+        currTask.byListTreeview.push(parseInt(getComputedStyle(wrapperTaskTask.children[i]).marginLeft) / byListTreeviewMargin)
 }
 
 function byListToDisplayTreeview(target = wrapperTaskTask, _fItem = currTask) {
-    target.querySelectorAll('div')
-        .forEach((item, index) => item.style.marginLeft = `${_fItem.byListTreeview[index] * byListTreeviewMargin}px`)
+    for (let i = 0; i < target.children.length; i++)
+        target.children[i].style.marginLeft = `${_fItem.byListTreeview[i] * byListTreeviewMargin}px`
 }
 
 function byListToTreeview(isToLeft) {
-    // debugger
     if (isToLeft)
     {
         if (currTask.byListTreeview[byListCurrPos] > 0 )        // first line unbreakable
@@ -491,6 +734,7 @@ function byListToTreeview(isToLeft) {
             else
                 currTask.byListTreeview[byListCurrPos] += 1
     }
+
     byListToDisplayTreeview(wrapperTaskTask)
 }
 
@@ -500,6 +744,12 @@ function byListManage(event) {
 
     if (event.key === 'ArrowDown')
         byListSwapLines(1)
+
+    if (event.key === 'Backspace')
+        directlyBackspaceAreaResizing(event.target)
+
+    if (event.key === 'Enter')
+        event.preventDefault()
 }
 
 function byListCreateElements(target, _fItem = currTask) {
@@ -509,21 +759,23 @@ function byListCreateElements(target, _fItem = currTask) {
         .forEach((item, index) =>
         {
             let
-                listDiv = createSomeElement('div', [], {}, { 'click': toDetermineByList }),
+                listDiv = createSomeElement('div', [], {}, [['click', toDetermineByList]]),
+                listCheckbox = createSomeElement('input', [], { 'type': 'checkbox' }, [['click', byListChangeCondition]]),
                 listLabel = createSomeElement('label', []),
-                listCheckbox = createSomeElement('input', [], { 'type': 'checkbox'}, { 'click': byListChangeCondition}),
-                listInput = createSomeElement('input', [], { 'type': 'text'}, { 'keydown': byListManage, 'input': byListInput, 'focus': toDetermineByList, 'blur': byListVoid })
+                listTextarea = createSomeElement('textarea', [], {}, [['keydown', byListManage], ['input', byListInput], ['blur', byListVoid], ['focus', toFocusedOnTextArea]]),
+                listDivAdd = createSomeElement('div', ['byListAddLine'], {}, [['click', byListAddLine]]),
+                listDivRemove = createSomeElement('div', ['byListRemoveLine'], {}, [['click', byListRemoveLine]])
 
-            listInput.value = _fItem.byListTasks[index]
+            listTextarea.value = _fItem.byListTasks[index]
 
-            listDiv.append(listCheckbox, listLabel, listInput)
+            listDiv.append(listCheckbox, listLabel, listTextarea, listDivAdd, listDivRemove)
             target.append(listDiv)
-
-            byListConditionClearly(listCheckbox, listInput, _fItem.byListDoneTasks.includes(index), index)
+            byListConditionClearly(listCheckbox, listTextarea, _fItem.byListDoneTasks.includes(index), index)
+            directlyAreaResizing(listTextarea)
         })
 
     if (target != wrapperTaskTask)
-        target.querySelectorAll('input[type="text"]').forEach(item => item.setAttribute('readonly', ''))
+        target.querySelectorAll('textarea').forEach(item => item.setAttribute('disabled', ''))
 }
 
 function byList() {
@@ -531,6 +783,7 @@ function byList() {
     document.querySelector('div[data-title="to by list"]')?.setAttribute('data-title', 'to not by list')
     wrapperTaskTask.setAttribute('contenteditable', false)
     wrapperTaskTask.addEventListener('dblclick', byListAddLine)
+
     byListCreateElements(wrapperTaskTask)
     byListReorder()
     byListToDisplayTreeview()
@@ -543,7 +796,7 @@ function notByList() {
     document.querySelector('div[data-title="to cancel task"]').removeAttribute('style')
     document.querySelector('div[data-title="to not by list"]')?.setAttribute('data-title', 'to by list')
     wrapperTaskTask.setAttribute('contenteditable', true)
-    wrapperTaskTask.querySelectorAll('input[type="text"]').forEach(item => cacheTask.push(item.value))
+    wrapperTaskTask.querySelectorAll('textarea').forEach(item => cacheTask.push(item.value))
     wrapperTaskTask.innerHTML = cacheTask.join('<br>')
     wrapperTaskTask.removeEventListener('dblclick', byListAddLine)
 }
@@ -584,7 +837,7 @@ function getBack() { // transfer crucialTask back to ordinary container
     let
         copy = crucialTask,
         position = +copy.getAttribute('id'),
-        ordinaryTasks = document.querySelectorAll('.tasks .task')
+        ordinaryTasks = document.querySelectorAll('.tasks > .task')
 
     copy.style.transform = 'translate(0px, 0px)'
     crucialTask.remove()
@@ -612,15 +865,15 @@ function getBack() { // transfer crucialTask back to ordinary container
     }
 
     setLSTask()
-    setLSPinnedTask()
     getTaskPos()
+    toCalculateOffset()
 }
 
 function toSendTo() {
     document.querySelector('.pinnedTasks').prepend(crucialTask) // transfer crucialTask into pinned container
     setLSTask()
-    setLSPinnedTask()
     getTaskPos()
+    toCalculateOffset()
 }
 
 function pinnedTask() {
@@ -695,6 +948,7 @@ function copyIt(fromMenu) {
     let pileToCreate = {
         'title': wTitle,
         'task': wTask,
+        'category': currTask.category,
         'color': currTask.color,
         'date': getCurrentDate(),
         'done': false,
@@ -709,8 +963,8 @@ function copyIt(fromMenu) {
     createTask(pileToCreate)
     addTask(objTasks[taskCounter])
     setLSTask()
-    setLSPinnedTask()
     getTaskPos()
+    toCalculateOffset()
     cancelIt()
     toShowPopUpMessage('Task has copied')
 }
@@ -744,7 +998,11 @@ function deleteIt() {
     taskCounter -= 1
 
     if (!createMode)
+    {
         addDeletedTaskIntoTrash(Object.assign({}, ...deletedTask))
+        toDisplayDeletedItems(...deletedTask)
+        getTrashTaskPos()
+    }
     else
         createMode = false
 
@@ -754,20 +1012,24 @@ function deleteIt() {
         document.getElementById(`${i + 1}`).setAttribute('id', i)
 
     toDisplayHowToAdd()
-    setLSPinnedTask()
     setLSTask()
     getTaskPos()
+    toCalculateOffset()
 }
 
 function toComputeColor() {
+    // debugger
     let
-        rgb = currTask.color
+        rgb = currTask?.color ? currTask.color : currThemeArray[0]
 
     rgb = rgb.substring(rgb.indexOf('(') + 1, rgb.indexOf(')')).split(', ')
     rgb.length === 4 ? rgb.pop() : rgb
 
     if (wrapperMain.style.display === 'flex')
-        wrapperMain.style.backgroundColor = `rgba(${rgb.join(', ')}, 0.5)`
+        wrapperMain.style.backgroundColor = `rgba(${rgb.join(', ')}, 0.4)`
+
+    crucialTask.style.backgroundColor = currTask?.color
+    wrapperTask.style.backgroundColor = currTask?.color
 }
 
 function toDetermineColor() {
@@ -777,7 +1039,6 @@ function toDetermineColor() {
     let
         isRoundWithColor = getComputedStyle(event.target).backgroundColor
 
-    crucialTask.style.backgroundColor = isRoundWithColor
     currTask.color = isRoundWithColor
 
     if (wrapperMain.style.display === 'flex')
@@ -787,114 +1048,201 @@ function toDetermineColor() {
     setLSTask()
 }
 
-function toCalculateTasksWidth() {
-    if (parseInt(getComputedStyle(document.body).width) >= 621)
-    {
-        taskWidth = 250
-        taskGap = 10
-        totalTaskWidth = taskWidth + taskGap
-    }
+function toResizeCheckForTextarea() {
+    if (isDecrease > document.body.clientWidth)
+        document.querySelectorAll('.task').forEach(item => item.querySelectorAll('textarea').forEach(textarea => directlyBackspaceAreaResizing(textarea)))
     else
+        document.querySelectorAll('.task').forEach(item => item.querySelectorAll('textarea').forEach(textarea => directlyAreaResizing(textarea)))
+    isDecrease = document.body.clientWidth
+}
+
+function toResizeCheckForMarquee() {
+    document.querySelectorAll('.task').forEach(item => activateMarquee(item.querySelector('.task_title')))
+}
+
+function toCalculateTasksWidth() {
+    if (document.body.clientWidth >= 560)
+        taskWidth = 250
+    else
+        taskWidth = document.body.clientWidth / 2 - taskGap * 3
+
+    document.querySelectorAll('.task').forEach(item => item.style.width = taskWidth + 'px')
+    totalTaskWidth = taskWidth + taskGap
+}
+
+function helperToCalculateOffset (arr) {
+    let
+        possibleMaxTaskDivHeight = 0,
+        maxTaskDivHeight = 0,
+        forCycleFor = arr.length >= totalTasksInRow ? arr.length - totalTasksInRow : 0,
+        j = 0
+
+    for (let i = arr.length - 1; i >= 0; i--)
     {
-        taskWidth = 150
-        taskGap = 10
-        totalTaskWidth = taskWidth + taskGap
+        if (arr[i].style.display !== 'none')
+        {
+            possibleMaxTaskDivHeight = parseInt(arr[i].style.transform.split(' ')[1]) + arr[i].offsetHeight
+            maxTaskDivHeight = possibleMaxTaskDivHeight > maxTaskDivHeight ? possibleMaxTaskDivHeight : maxTaskDivHeight
+            j += 1
+        }
+        if (j === totalTasksInRow)      // Wee neddd only 'x' last active tasks
+            break
     }
+    return maxTaskDivHeight !== 0 ? maxTaskDivHeight : -20
+}
+
+function toCalculateOffset() {
+    // debugger
+    if (allPinnedTasks.length > 0)
+        document.querySelector('.tasks').style.top = `${helperToCalculateOffset(allPinnedTasks)}px`
+    else
+        document.querySelector('.tasks').style.top = `-20px`
+
+    if (allOrdinaryTasks.length > 0)
+        document.querySelector('.tasks').style.height = `${helperToCalculateOffset(allOrdinaryTasks) + 20}px`
+}
+
+function getTaskPosExtended(target, aim) {
+    let
+        xPos = parseInt(aim.style.transform.split('(')[1]),
+        yPos = parseInt(aim.style.transform.split(' ')[1]) + aim.offsetHeight + taskGap
+
+    target.style.transform = `translate(${xPos}px, ${yPos}px)`
+    // console.log(xPos)
+    // console.log(target, aim)
+}
+
+function preProcess(arr) {
+    console.log(arr)
+    for (let i = 0; i < arr.length - 1; i++)
+    {
+        for (let j = i + 1; j < arr.length; j++)
+        {
+            // debugger
+            console.log(parseInt(arr[i].style.transform.split(' ')[1]))
+            console.log(arr[j].offsetHeight)
+            console.log(parseInt(arr[j].style.transform.split(' ')[1]))
+            console.log(parseInt(arr[i].style.transform.split(' ')[1]) + arr[j].offsetHeight < parseInt(arr[j].style.transform.split(' ')[1]))
+
+            if (parseInt(arr[i].style.transform.split(' ')[1]) > arr[j].offsetHeight + parseInt(arr[j].style.transform.split(' ')[1]))
+            {
+                // getTaskPosExtended(arr[i], arr[j])
+                // break
+            }
+
+            if (parseInt(arr[j].style.transform.split(' ')[1]) < arr[i].offsetHeight + parseInt(arr[i].style.transform.split(' ')[1]))
+            {
+                // getTaskPosExtended(arr[i], arr[j])
+                // break
+            }
+        }
+        break
+    }
+}
+
+
+function intoArray(div) {
+    let
+        empty = []
+
+    if (div.childNodes.length > totalTasksInRow)
+    {
+        for (let i = div.childNodes.length - totalTasksInRow; i < div.childNodes.length; i++)
+            empty.push(div.childNodes[i])
+        preProcess(empty)
+    }
+}
+
+function initGetTaskPosExtended() {
+    document.querySelectorAll('.taskWrapper > div').forEach(item => intoArray(item))
 }
 
 function getTaskPos() {
     let
         pinnedLSTasks = localStorage.getItem('lsPinnedTasks') ? JSON.parse(localStorage.getItem('lsPinnedTasks')) : [],
-        ordinaryTasks = document.querySelectorAll('.tasks .task'),
-        currOffset = null,
         currRow = 0,
         preTaskHeight = null,
-        maxTaskHeight = 0,
         currTask = null,
         j = 0
 
     totalWidth = document.body.offsetWidth
     totalTasksInRow = Math.trunc(totalWidth / totalTaskWidth)
-
+    
     for (let i = 0; i < pinnedLSTasks.length; i++)      // TO GET POSITION FOR PINNED TASK
-    { 
-        if (i >= totalTasksInRow)
-            currRow = i % totalTasksInRow === 0 ? currRow + 1 : currRow
-
-        currTask = document.getElementById(pinnedLSTasks[i]).closest('.task')
-        currOffset = getPinnedTransform(i, currRow, currTask)
-    }
-
-    if (pinnedLSTasks.length > 0)
-        document.querySelector('.tasks').style.top = `${currOffset}px`
-    else
-        document.querySelector('.tasks').style.top = `-20px`
-
-    currRow = 0
-    maxTaskHeight = 0
-
-    for (let i = 0; i < ordinaryTasks.length; i++)      // TO GET POSITION FOR ORDINARY TASK
     {
-        if (i >= totalTasksInRow)
-            currRow = i % totalTasksInRow === 0 ? currRow + 1 : currRow
+        currTask = document.getElementById(pinnedLSTasks[i]).closest('.task')
+        if (currTask.style.display !== 'none')
+        {
+            if (j >= totalTasksInRow)
+                currRow = j % totalTasksInRow === 0 ? currRow + 1 : currRow
 
-        currTask = ordinaryTasks[i]
-        currOffset = getOrdinaryTransform(i, currRow, currTask)
+            getPinnedTransform(j, currRow, currTask)
+            j += 1
+        }
     }
 
-    if (ordinaryTasks.length > 0)
-        document.querySelector('.tasks').style.height = `${currOffset + 40}px`
+    currRow = 0,
+    j = 0
 
-    function getPinnedTransform(i, currRow, currTask) {
+    for (let i = 0; i < allOrdinaryTasks.length; i++)      // TO GET POSITION FOR ORDINARY TASK
+    {
+        if (allOrdinaryTasks[i].style.display !== 'none')
+        {
+            if (j >= totalTasksInRow)
+                currRow = j % totalTasksInRow === 0 ? currRow + 1 : currRow
+
+            currTask = allOrdinaryTasks[i]
+            getOrdinaryTransform(j, currRow, currTask)
+            j += 1
+        }
+    }
+
+    // if (allOrdinaryTasks.length > 0)
+        // initGetTaskPosExtended()
+
+    
+
+
+    function getPinnedTransform(k, currRow, currTask) {
         switch (currRow) {
             case 0:
-                if (i === 0)
+                if (k === 0)
                     currTask.style.transform = `translate(0px, 0px)`
                 else
-                    currTask.style.transform = `translate(${totalTaskWidth * i}px, 0px)`
+                    currTask.style.transform = `translate(${totalTaskWidth * k}px, 0px)`
 
-                preTaskHeight = currTask.offsetHeight
-                maxTaskHeight = maxTaskHeight < preTaskHeight ? preTaskHeight : maxTaskHeight
                 break
             case 1:
-                preTaskHeight = document.getElementById(`${pinnedLSTasks[i - totalTasksInRow]}`).offsetHeight
-                currTask.style.transform = `translate(${totalTaskWidth * (i - totalTasksInRow)}px, ${preTaskHeight + taskGap}px)`
+                preTaskHeight = document.getElementById(`${pinnedLSTasks[k - totalTasksInRow]}`).offsetHeight
+                currTask.style.transform = `translate(${totalTaskWidth * (k - totalTasksInRow)}px, ${preTaskHeight + taskGap}px)`
 
-                maxTaskHeight = maxTaskHeight < preTaskHeight + currTask.offsetHeight + 10 ? preTaskHeight + currTask.offsetHeight + 10 : maxTaskHeight
                 break
             default:
-                preTaskHeight = parseInt(document.getElementById(`${pinnedLSTasks[i - totalTasksInRow]}`).style.transform.split(' ')[1]) + document.getElementById(`${pinnedLSTasks[i - totalTasksInRow]}`).offsetHeight
-                currTask.style.transform = `translate(${totalTaskWidth * (i - totalTasksInRow * currRow)}px, ${preTaskHeight + taskGap}px)`
+                preTaskHeight = parseInt(document.getElementById(`${pinnedLSTasks[k - totalTasksInRow]}`).style.transform.split(' ')[1]) + document.getElementById(`${pinnedLSTasks[k - totalTasksInRow]}`).offsetHeight
+                currTask.style.transform = `translate(${totalTaskWidth * (k - totalTasksInRow * currRow)}px, ${preTaskHeight + taskGap}px)`
 
-                maxTaskHeight = maxTaskHeight < preTaskHeight + currTask.offsetHeight + 10 ? preTaskHeight + currTask.offsetHeight + 10 : maxTaskHeight
                 break
         }
-        return maxTaskHeight
     }
 
-    function getOrdinaryTransform(i, currRow, currTask) {
+    function getOrdinaryTransform(k, currRow, currTask) {
         switch (currRow){
             case 0:
-                if (i === 0)
+                if (k === 0)
                     currTask.style.transform = `translate(0px, 0px)`
                 else
-                    currTask.style.transform = `translate(${totalTaskWidth * i}px, 0px)`
+                    currTask.style.transform = `translate(${totalTaskWidth * k}px, 0px)`
 
-                preTaskHeight = currTask.offsetHeight
-                maxTaskHeight = maxTaskHeight < preTaskHeight ? preTaskHeight : maxTaskHeight
                 break
             case 1:
-                preTaskHeight = ordinaryTasks[i - totalTasksInRow].offsetHeight
-                currTask.style.transform = `translate(${totalTaskWidth * (i - totalTasksInRow)}px, ${preTaskHeight + taskGap}px)`
-                maxTaskHeight = maxTaskHeight < preTaskHeight + currTask.offsetHeight + 10 ? preTaskHeight + currTask.offsetHeight + 10 : maxTaskHeight
+                preTaskHeight = allOrdinaryTasks[k - totalTasksInRow].offsetHeight
+                currTask.style.transform = `translate(${totalTaskWidth * (k - totalTasksInRow)}px, ${preTaskHeight + taskGap}px)`
                 break
             default:
-                preTaskHeight = parseInt(ordinaryTasks[i - totalTasksInRow].style.transform.split(' ')[1]) + ordinaryTasks[i - totalTasksInRow].offsetHeight
-                currTask.style.transform = `translate(${totalTaskWidth * (i - totalTasksInRow * currRow)}px, ${preTaskHeight + taskGap}px)`
-                maxTaskHeight = maxTaskHeight < preTaskHeight + currTask.offsetHeight + 10 ? preTaskHeight + currTask.offsetHeight + 10 : maxTaskHeight
+                preTaskHeight = parseInt(allOrdinaryTasks[k - totalTasksInRow].style.transform.split(' ')[1]) + allOrdinaryTasks[k - totalTasksInRow].offsetHeight
+                currTask.style.transform = `translate(${totalTaskWidth * (k - totalTasksInRow * currRow)}px, ${preTaskHeight + taskGap}px)`
                 break
         }
-        return maxTaskHeight
     }
 }
 
@@ -915,7 +1263,6 @@ function toCloseWindow() {
     document.body.addEventListener('keydown', bodyHotKey)
     document.body.removeAttribute('style')
     createMode = false
-    wrapperTrash.querySelector('.wrapper_trash_tasks').innerHTML = ''
 }
 
 function toCloseClose() {
@@ -950,17 +1297,17 @@ function overButtons() {
 }
 
 function closerTask() {
+    toDisplayChosenCategoryCloser()
+
     document.body.removeEventListener('keydown', bodyHotKey)
     document.body.addEventListener('keydown', hotKey)
 
     itWasByList = currTask.byList
 
     wrapperTask.style.display = 'block'
-    wrapperTask.style.backgroundColor = currTask.color
 
     wrapperTaskTitle.value = currTask.title
     wrapperTaskTitle.focus()
-    
     wrapperTaskTask.innerHTML = currTask.task.join('<br>')
     wrapperTaskDate.innerText = currTask.date
 
@@ -974,6 +1321,7 @@ function closerTask() {
         byList()
         byListToDisplayTreeview(wrapperTaskTask)
     }
+    wrapperTask.scrollLeft = 0
 }
 
 function closerAddTask() {
@@ -988,23 +1336,21 @@ function closerAddTask() {
 
     document.querySelector('div[data-title="to unpin task"]')?.setAttribute('data-title', 'to pin task')
 
-    createTask({})
+    createTask({category: chosenCategory[0]})
     addTask(objTasks[taskCounter])
     toDetermineCrucial(document.getElementById(taskCounter - 1))
     toDisplayHowToAdd()
+
+    currTask.color = currThemeArray[chosenCategory[1]]
+    toDisplayChosenCategoryCloser()
     setLSTask()
-    setLSPinnedTask()
 
     wrapperTask.style.display = 'block'
     wrapperTaskTitle.value = ''
+    wrapperTaskTitle.focus()
     wrapperTaskTask.innerText = ''
     wrapperTaskDate.innerText = currTask.date
-    wrapperTaskTitle.focus()
-}
-
-function closerSettings() {
-    currTask = null
-    wrapperSettings.style.display = 'flex'
+    wrapperTask.scrollLeft = 0
 }
 
 function closerInfo() {
@@ -1020,14 +1366,21 @@ function toEmptyTrash() {
     toShowPopUpMessage('Trash successfully cleared')
 }
 
-function removeItemFromTrash() {
-    let
-        chosenItem = event.target.closest('.wrapper_trash_tasks_task')
-        chosenItemIndex = null
+function toDetermineChosenInTrash(target) {
+    let 
+        _chosenItem = target.closest('.wrapper_trash_tasks_task'),
+        _chosenIndex = null
 
     document.querySelectorAll('.wrapper_trash_tasks > div').forEach((item, index) => {
-        if (item === event.target.closest('.wrapper_trash_tasks_task'))
-            chosenItemIndex = index})
+        if (item === target.closest('.wrapper_trash_tasks_task'))
+            _chosenIndex = index})
+
+    return [_chosenItem, _chosenIndex]
+}
+
+function removeItemFromTrash() {
+    let
+        [chosenItem, chosenItemIndex] = toDetermineChosenInTrash(event.target)
 
     chosenItem.remove()
     objTrashTasks.splice(chosenItemIndex, 1)
@@ -1043,13 +1396,7 @@ function removeItemFromTrash() {
 
 function getBackFromTrash() {
     let
-        chosenItem = event.target.closest('.wrapper_trash_tasks_task')
-        chosenItemIndex = null
-
-    document.querySelectorAll('.wrapper_trash_tasks > div').forEach((item, index) => {
-        if (item === event.target.closest('.wrapper_trash_tasks_task'))
-            chosenItemIndex = index
-    })
+        [chosenItem, chosenItemIndex] = toDetermineChosenInTrash(event.target)
 
     chosenItem.remove()
     createTask(Object.assign({}, ...objTrashTasks.splice(chosenItemIndex, 1)))
@@ -1059,41 +1406,43 @@ function getBackFromTrash() {
         toCloseWindow()
 
     setLSTask()
-    setLSPinnedTask()
     setLSTrashTasks()
     getTaskPos()
+    toCalculateOffset()
     toDisplayHowToAdd()
     checkTrash()
     getTrashTaskPos()
     toShowPopUpMessage('Task has restored successfully')
 }
 
-function toDisplayDeletedItems() {
-    objTrashTasks.forEach((item, index) =>
-    {
-        let
-            { title, task, color, byList, byListDoneTasks, byListTasks, pin} = item,
-            taskDivPin = createSomeElement('div', ['wrapper_trash_tasks_task_pin']),
-            taskDiv = createSomeElement('div', ['wrapper_trash_tasks_task'], {'style': `background-color: ${color}`}),
-            taskDivTitle = createSomeElement('div', ['wrapper_trash_tasks_task_title'], {}),
-            taskDivTask = createSomeElement('div', ['wrapper_trash_tasks_task_task'], {}),
-            taskDivGetBack = createSomeElement('div', ['wrapper_trash_tasks_task_getBack'], {'id': `${index}_trash`}, {'click': getBackFromTrash})
-            taskDivRemoveItem = createSomeElement('div', ['wrapper_trash_tasks_task_removeItem'], {'id': `${index}_trash`}, {'click': removeItemFromTrash})
+function toGenerateTrash() {
+    objTrashTasks.forEach(item => toDisplayDeletedItems(item))
+}
 
-        taskDivTitle.innerHTML = title
-        taskDivTask.innerHTML = task.join(', ')
+function toDisplayDeletedItems(item) {
+    let
+        { title, task, color, byList, byListDoneTasks, byListTasks, pin} = item,
+        taskDivPin = createSomeElement('div', ['wrapper_trash_tasks_task_pin']),
+        taskDiv = createSomeElement('div', ['wrapper_trash_tasks_task'], {'style': `background-color: ${color}`}),
+        taskDivTask = createSomeElement('div', ['wrapper_trash_tasks_task_task'], {}),
+        taskDivTaskSpan = createSomeElement('span')
+        taskDivGetBack = createSomeElement('div', ['wrapper_trash_tasks_task_getBack'], {}, [['click', getBackFromTrash]])
+        taskDivRemoveItem = createSomeElement('div', ['wrapper_trash_tasks_task_removeItem'], {}, [['click', removeItemFromTrash]])
 
-        if (pin)
-            taskDivPin.classList.add('wrapper_trash_tasks_task_pin_pinned')
+    taskDivTaskSpan.innerHTML = `<b>${title}</b> ${'    ' + task.join(', ')}`
+    taskDivTask.append(taskDivTaskSpan)
 
-        taskDivTask.querySelectorAll('input[type="checkbox"]').forEach(item => item.setAttribute('disabled', ''))
-        taskDiv.append(taskDivPin, taskDivTitle, taskDivTask, taskDivGetBack, taskDivRemoveItem)
-        document.querySelector('.wrapper_trash_tasks').append(taskDiv)
-    })
+    if (pin)
+        taskDivPin.classList.add('wrapper_trash_tasks_task_pin_pinned')
+
+    taskDiv.append(taskDivPin, taskDivTask, taskDivGetBack, taskDivRemoveItem)
+    document.querySelector('.wrapper_trash_tasks').append(taskDiv)
+    activateMarquee(taskDivTask)
 }
 
 function getTrashTaskPos(currStartPos = 0) {
-    let trashTasks = document.querySelectorAll('.wrapper_trash_tasks > div')
+    let
+        trashTasks = document.querySelectorAll('.wrapper_trash_tasks > div')
 
     if (trashTasks.length === 0)
         return
@@ -1111,8 +1460,6 @@ function getTrashTaskPos(currStartPos = 0) {
 function closerOpenTrash() {
     currTask = null
     wrapperTrash.style.display = 'flex'
-    wrapperTrash.querySelector('.wrapper_trash_tasks')
-    toDisplayDeletedItems()
     getTrashTaskPos()
 }
 
@@ -1123,9 +1470,9 @@ function closer() {
         event.target.getAttribute('class') === 'topBar_trash' ? 'trash' : 'task'
         
     wrapperMain.style.display = 'flex'
-    wrapperTaskTitle.focus()
     wrapperTaskTask.setAttribute('contenteditable', true)
 
+    document.body.style.overflow = 'hidden'
     switch (closerTarget) {
         case 'addingTask':
             closerAddTask()
@@ -1137,9 +1484,9 @@ function closer() {
             closerOpenTrash()
             break
         case 'task':
-            toComputeColor()
             closerTask()
     }
+    toComputeColor()
 }
 
 function notDoneTask() {
@@ -1188,23 +1535,26 @@ function popDownOverButtons() {
     crucialTask.querySelector('.overButtons').style.display = 'none'
 }
 
-function createSomeElement(element = '', styleClass = [], attributes = {}, events = {}) { // extended create element function
+function createSomeElement(element = '', styleClass = [], attributes = {}, events = []) { // extended create element function
+    // debugger
     let cache = document.createElement(element) // create element
     cache.classList.add(...styleClass) // add classes
     for (let item in attributes) cache.setAttribute(item, attributes[item]) // add attributes
-    for (let item in events) cache.addEventListener(item, events[item]) // addEvents
+        // debugger
+    for (let item of events) cache.addEventListener(...item) // addEvents
     return cache
 }
 
 function addTask({ title, task, date, color, done, pin, byList }) {
     let
-        taskDiv = createSomeElement('div', ['task'], { 'id': `${taskCounter}`, 'style': `background-color: ${color}` }, { 'click': closer, 'mouseleave': popDownOverButtons })
+        taskDiv = createSomeElement('div', ['task'], { 'id': `${taskCounter}`, 'draggable': 'true', 'style': `background-color: ${color}` }, [['click',closer], ['mouseleave', popDownOverButtons], ['dragstart', dragStartTask], ['dragend', dragEndTask], ['dragover', dragoverTask, true], ['dragenter', dragenterTask, false], ['dragleave', dragleaveTask], ['drop', dropTask]])
+        taskDivSpanTitle = createSomeElement('span')
         taskDivTitle = createSomeElement('div', ['task_title']), // TITLE
         taskDivTask = createSomeElement('div', ['task_task']), // TASK
-        taskDivCheckBox = createSomeElement('div', ['taskDivCheckBox'], {}, { 'click': isDoneTask }), // CHECKBOX
-        taskDivPin = createSomeElement('div', ['taskDivPin'], {}, { 'click': isPinnedTask }), // PINNED
-        overButtonsDiv = createSomeElement('div', ['overButtons'], {}, { 'click': overButtons }),
-        colorMenu = createSomeElement('div', ['gettingColor'], {}, { 'click': toDetermineColor }),
+        taskDivCheckBox = createSomeElement('div', ['taskDivCheckBox'], {}, [['click', isDoneTask]]), // CHECKBOX
+        taskDivPin = createSomeElement('div', ['taskDivPin'], {}, [['click', isPinnedTask]]), // PINNED
+        overButtonsDiv = createSomeElement('div', ['overButtons'], {}, [[ 'click', overButtons]]),
+        colorMenu = createSomeElement('div', ['gettingColor'], {}, [['click', toDetermineColor]]),
 
         taskCheckBox = createSomeElement('input', [], { 'type': 'checkbox', 'id': `2_${taskCounter}` }),
         taskCheckBoxLabel = createSomeElement('label', [], { 'for': `2_${taskCounter}` }),
@@ -1219,7 +1569,8 @@ function addTask({ title, task, date, color, done, pin, byList }) {
     overButtonsDivGetColor = createSomeElement('div', ['getColor'])
     overButtonsDivDeleteIt = createSomeElement('div', ['deleteIt'])
 
-    taskDivTitle.innerHTML = title
+    taskDivSpanTitle.textContent = title
+    taskDivTitle.append(taskDivSpanTitle)
 
     taskDivCheckBox.append(taskCheckBox, taskCheckBoxLabel)
     taskDivPin.append(taskPinCheckbox, taskPinLabel)
@@ -1260,21 +1611,28 @@ function addTask({ title, task, date, color, done, pin, byList }) {
     }
 
     if (taskCounter + 1 === objTasks.length)
+    {
+        toCalculateTasksWidth()
+        toHideUnChosen()
         getTaskPos()
+        toCalculateOffset()
+    }
+
+    crucialTask = taskDiv
+    activateMarquee(taskDivTitle)
 
     taskCounter += 1
 }
 
 function setLSTask() {
-    localStorage.setItem('lsTasks', JSON.stringify(objTasks))
-}
-
-function setLSPinnedTask() {
     let
         toLS = []
 
     document.querySelectorAll('.pinnedTasks > .task').forEach(item => toLS.push(item.getAttribute('id')))
     localStorage.setItem('lsPinnedTasks', JSON.stringify(toLS))
+
+    localStorage.setItem('lsTasks', JSON.stringify(objTasks))
+    localStorage.setItem('categories', JSON.stringify(categories))
 }
 
 function setLSTrashTasks() {
@@ -1294,11 +1652,12 @@ function getCurrentDate() {
 }
 
 function createTask(pile) {
-    let { title = '', task = [], color = localStorage.getItem('currentTheme') === 'light' ? lightThemeArray[0] : darkThemeArray[0], pin = false, byList = false, byListTasks = [], byListDoneTasks = [], byListTreeview = [], date = getCurrentDate() } = pile
+    let { title = '', task = [], category = 'None', color = currThemeArray[0], pin = false, byList = false, byListTasks = [], byListDoneTasks = [], byListTreeview = [], date = getCurrentDate() } = pile
 
     objTasks.push({
         'title': title,
         'task': task,
+        'category': category,
         'color': color,
         'date': date,
         'done': false,
@@ -1310,6 +1669,72 @@ function createTask(pile) {
     })
 }
 
+function dragStartTask() {
+    crucialDragTask = event.currentTarget
+    setTimeout(() => crucialDragTask.classList.add('taskDragStartHide'), 0)
+}
+
+function dragEndTask () {
+    let 
+        aimTask = document.querySelector('.dragenterTask')
+    crucialDragTask.classList.remove('taskDragStartHide')
+    aimTask?.classList.remove('dragenterTask')
+}
+
+function dragoverTask () {
+    event.preventDefault()
+}
+
+function dragenterTask () {
+    event.preventDefault()
+    document.querySelector('.dragenterTask')?.classList.remove('dragenterTask')
+    this.classList.add('dragenterTask')
+}
+
+function dragleaveTask () {
+    event.preventDefault()
+    if (event.target.closest('.task') !== this)
+        event.currentTarget.classList.remove('dragenterTask')
+}
+
+function dropTask () {
+    event.preventDefault()
+    if (crucialDragTask.parentElement.classList.toString() === document.querySelector('.dragenterTask').parentElement.classList.toString())
+    {
+        let
+            arrTo = parseInt(document.querySelector('.dragenterTask').getAttribute('id')),
+            cache = null,
+            cacheElement = null
+            isAfter = null
+
+        cache = objTasks.splice(crucialTaskNum, 1, objTasks[arrTo])
+        objTasks.splice(arrTo, 1, ...cache)
+
+        if (crucialDragTask.previousSibling)
+        {
+            isAfter = true
+            cacheElement = crucialDragTask.previousSibling
+        }
+        else
+        {
+            isAfter = false
+            cacheElement = crucialDragTask.nextElementSibling
+        }
+
+        document.querySelector('.dragenterTask').before(crucialDragTask)
+        isAfter === true ? cacheElement.after(document.querySelector('.dragenterTask')) : cacheElement.before(document.querySelector('.dragenterTask'))
+
+        document.querySelector('.dragenterTask').setAttribute('id', crucialTaskNum)
+        crucialDragTask.setAttribute('id', arrTo)
+
+        setLSTask()
+        setTimeout(() => {
+            getTaskPos()
+            toCalculateOffset()
+        }, 100)
+    }
+}
+
 function exit() {
     window.location.href = "about:home"
 }
@@ -1319,7 +1744,6 @@ function toShowPopUpMessage(message) {
         messageBlock = createSomeElement('div', ['popUpNotify'])
 
     document.querySelectorAll('.popUpNotify')?.forEach(item => item.style.display = 'none')
-
     messageBlock.innerText = message
     document.body.append(messageBlock)
     setTimeout(() => messageBlock.remove(), 3000)
@@ -1404,11 +1828,74 @@ function toGenerateInfoBlock() {
     }
 }
 
-function toDisplayHowToAdd() {
+function toDisplayHowToAdd() {      // to display help element
     if (taskCounter === 0)
         document.querySelector('.helpElement').style.display = 'block'
     else
         document.querySelector('.helpElement').removeAttribute('style')
+}
+
+function toChooseCurrentCategoryForTask() {
+    document.querySelector('.categories_parent .topBar_categories_parent_child_chose')?.classList.toggle('topBar_categories_parent_child_chose')
+    event.target.previousSibling.classList.add('topBar_categories_parent_child_chose')
+
+    for (let i = 0; i < categories.length; i++)
+    {
+        if (categories[i].includes(event.target.innerText))
+        {
+            if (event.target.parentElement.style.backgroundColor !== currThemeArray[0])
+            {
+                currTask.color = currThemeArray[categories[i][1]]
+                wrapperTask.style.backgroundColor = currThemeArray[categories[i][1]]
+            }
+
+            currTask.category = categories[i][0]
+            if (chosenCategory[0] !== 'None' && currTask.category !== chosenCategory[0])
+            {
+                toHideUnChosen()
+                toCalculateOffset()
+                getTaskPos()
+            }
+
+            toComputeColor()
+            break
+        }
+    }
+    setLSTask()
+}
+
+function toDisplayChosenCategoryCloser() {
+    let
+        labels = document.querySelectorAll('.categories_parent_child_label')
+
+    for (let i = 0; i < labels.length; i++)
+        if (labels[i].innerText == currTask.category)
+        {
+            document.querySelector('.categories_parent .topBar_categories_parent_child_chose')?.classList.toggle('topBar_categories_parent_child_chose')
+            labels[i].previousSibling.classList.add('topBar_categories_parent_child_chose')
+        }
+}
+
+function toGenerateCategories(major = document.querySelector('div[data-title="to choose category"]')) {
+    let
+        parent = createSomeElement('div', ['categories_parent'])
+        
+    major.innerText = ''
+    major.append(parent)
+
+    categories.forEach((item, index) =>
+    {
+        let
+            catChild = createSomeElement('div', ['categories_parent_child'], {}, []),
+            catChildActive = createSomeElement('div', [], {}, []),
+            catChildLabel = createSomeElement('div', ['categories_parent_child_label'], {}, [['click', toChooseCurrentCategoryForTask]])
+
+            catChild.style.backgroundColor = currThemeArray[item[1]]
+            catChildLabel.innerText = item[0]
+
+            catChild.append(catChildActive, catChildLabel)
+            parent.append(catChild)
+    })
 }
 
 function onloadInit() {
@@ -1439,9 +1926,12 @@ function onloadInit() {
     }
 
     if (!localStorage.getItem('currentTheme'))      // executting current theme
+    {
         localStorage.setItem('currentTheme', 'light')
+        currTheme = localStorage.getItem('currentTheme')
+    }
 
-    document.querySelector('#toSwitchTheme').href = `css/${localStorage.getItem('currentTheme')}.css`       // to apply current theme
+    document.querySelector('#toSwitchTheme').href = `css/${currTheme}.css`       // to apply current theme
     toGenerateGettingColorBlock(wrapperMain.querySelector('.gettingColor'))     // based on this - change general color
 
     if (!localStorage.getItem('trash'))
@@ -1450,32 +1940,24 @@ function onloadInit() {
         objTrashTasks = JSON.parse(localStorage.getItem('trash'))
 }
 
-function eraseDocument() {
-    document.body.innerHTML= ''     // if platform douesn't support
-    let eraseBlock = createSomeElement('div', ['eraseBlock'])
-    eraseBlock.innerText = `This app doesn\'t support platform \"${navigator.userAgent.split('(')[1].split(' ')[0]}\" yet`
-    document.body.append(eraseBlock)
-}
-
 window.onload = function() {
-    if (platforms.includes(navigator.userAgent.split('(')[1].split(' ')[0]))
-        eraseDocument()
-    else
-    {
-        toCalculateTasksWidth()
-        onloadInit()
-        toDisplayHowToAdd()
-        toGenerateInfoBlock()
-        toCountDoneTasks()
-        checkTrash()
-        toAlignTasks()
-    }
+    onloadInit()
+    toInitCategories()
+    toHideUnChosen()
+    toGenerateCategories(document.querySelector('div[data-title="to choose category"]'))
+    toDisplayHowToAdd()
+    toGenerateInfoBlock()
+    toCountDoneTasks()
+    checkTrash()
+    toGenerateTrash()
+    toAlignTasks()
 }
 
 window.onresize = function() {
     toCalculateTasksWidth()
+    toResizeCheckForMarquee()
+    toResizeCheckForTextarea()
     getTaskPos()
+    toCalculateOffset()
     toAlignTasks()
 }
-
-// завязать весь css на переменные, полностью весь

@@ -5,7 +5,7 @@
   color: rgba(255, 255, 255, 0.2); }
 
 *::selection {
-  background: rgba(255, 255, 255, 0.1); }
+  background: rgba(255, 255, 255, 0.05); }
 
 body {
   background-color: #212121; }
@@ -16,23 +16,89 @@ div[data-title="close window"] {
 input {
   color: #dddddd; }
 
-.task_task input[type=checkbox] + label:before, .wrapper_task_task input[type=checkbox] + label:before, .wrapper_trash_columns_column_task_task input[type=checkbox] + label:before {
+input[type=checkbox] + label:before {
   background-image: url("../img/checkboxByListInvert.png"); }
 
-.task_task input[type=checkbox]:checked + label:before, .wrapper_task_task input[type=checkbox]:checked + label:before, .wrapper_trash_columns_column_task_task input[type=checkbox]:checked + label:before {
+input[type=checkbox]:checked + label:before {
   opacity: .2;
   background-image: url("../img/byListCheckedInvert.png"); }
+
+.topBar {
+  background-color: #212121;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.05); }
+  .topBar:hover {
+    box-shadow: 0px 0px 7.5px rgba(255, 255, 255, 0.05); }
+  .topBar_add {
+    background-image: url("../img/addTaskInvert.png"); }
+  .topBar_categories {
+    background-image: url("../img/categoryInvert.png"); }
+    .topBar_categories_parent {
+      background-color: #212121;
+      box-shadow: 0px 0px 7.5px rgba(255, 255, 255, 0.05); }
+      .topBar_categories_parent_child_label:focus {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2); }
+      .topBar_categories_parent_child_chose {
+        background-image: url("../img/saveInvert.png"); }
+      .topBar_categories_parent_child_remove {
+        background-image: url("../img/cancelInvert.png"); }
+      .topBar_categories_parent_child_add_image {
+        background-image: url("../img/addNewCategoryInvert.png"); }
+      .topBar_categories_parent_child_color {
+        background-color: #212121; }
+        .topBar_categories_parent_child_color > div {
+          border: 1px solid rgba(255, 255, 255, 0.05); }
+        .topBar_categories_parent_child_color > div:hover {
+          border: 1px solid rgba(255, 255, 255, 0.2); }
+  .topBar_theme {
+    background-image: url("../img/darkTheme.png"); }
+  .topBar_info {
+    background-image: url("../img/helpInvert.png"); }
+  .topBar_deleteAll {
+    opacity: .25;
+    background-image: url("../img/checkedTrashAllInvert.png"); }
+  .topBar_trash {
+    opacity: .25;
+    background-image: url("../img/trashAllInvert.png"); }
+  .topBar_exit {
+    background-image: url("../img/exitInvert.png"); }
+  .topBar .helpElement div {
+    background-image: url("../img/emptyArrowInvert.png"); }
+
+.tasks {
+  border-top: 1px solid rgba(255, 255, 255, 0.05); }
+
+.task {
+  background-color: #303030;
+  border: 1px solid #626262; }
+  .task .overButtons > div:nth-child(1) {
+    background-image: url("../img/pasteInvert.png"); }
+  .task .overButtons > div:nth-child(2) {
+    background-image: url("../img/paintInvert.png"); }
+  .task .overButtons > div:nth-child(3) {
+    background-image: url("../img/trashInvert.png"); }
+  .task .overButtons .getColor:hover .gettingColor {
+    display: grid;
+    left: 63px; }
+  .task .taskDivCheckBox input[type=checkbox] + label:before {
+    background-image: url("../img/checkInvert.png"); }
+  .task .taskDivCheckBox input[type=checkbox]:checked + label:before {
+    background-image: url("../img/checkedInvert.png"); }
+  .task .taskDivPin input[type=checkbox] + label:before {
+    background-image: url("../img/pinInvert.png"); }
+  .task .taskDivPin input[type=checkbox]:checked + label:before {
+    background-image: url("../img/pinnedInvert.png");
+    opacity: 1; }
 
 .wrapper > * {
   background: #212121;
   border: 1px solid #626262; }
 
 .wrapper_info_table_cap:not(:last-child) {
-  border-bottom: 1px rgba(255, 255, 255, 0.1) solid; }
+  border-bottom: 1px rgba(255, 255, 255, 0.05) solid; }
 
 .wrapper_info_table span {
   color: #dddddd;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
   border: 1.5px solid rgba(255, 255, 255, 0.2);
   box-shadow: 3px 2px 2px rgba(0, 0, 0, 0.8); }
 
@@ -41,7 +107,7 @@ input {
 
 .wrapper_trash_tasks_task {
   background-color: #303030;
-  border: 0.5px solid rgba(255, 255, 255, 0.1); }
+  border: 0.5px solid rgba(255, 255, 255, 0.05); }
   .wrapper_trash_tasks_task_getBack {
     background-image: url("../img/getBackInvert.png"); }
   .wrapper_trash_tasks_task_removeItem {
@@ -51,23 +117,19 @@ input {
 
 .wrapper_task_title {
   background: transparent;
-  border-right: 1.5px solid rgba(255, 255, 255, 0.1); }
+  border-right: 1.5px solid rgba(255, 255, 255, 0.05); }
   .wrapper_task_title:focus {
     border-right: 1.5px solid rgba(255, 255, 255, 0.2); }
 
 .wrapper_task_task {
   color: #dddddd;
-  border-right: 1.5px solid rgba(255, 255, 255, 0.1); }
-  .wrapper_task_task div {
-    margin: 2px 0; }
-  .wrapper_task_task div:active {
-    animation: closerHover .5s ease; }
-
-@keyframes closerHover {
-  0% {
-    background-color: rgba(255, 255, 255, 0.2); }
-  100% {
-    background-color: transparent; } }
+  border-right: 1.5px solid rgba(255, 255, 255, 0.05); }
+  .wrapper_task_task .byListAddLine {
+    background-image: url("../img/byListAddInvert.png"); }
+  .wrapper_task_task .byListRemoveLine {
+    background-image: url("../img/cancelInvert.png"); }
+  .wrapper_task_task .activeTextArea {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent); }
 
 .wrapper_task_task:empty:before {
   color: rgba(255, 255, 255, 0.2); }
@@ -99,92 +161,51 @@ input {
 .wrapper_task_menu_options > div[data-title="to copy task"] {
   background-image: url("../img/pasteInvert.png"); }
 
+.wrapper_task_menu_options > div[data-title="to choose category"] {
+  background-image: url("../img/categoryInvert.png"); }
+
 .wrapper_task_menu_options > div[data-title="to apply color"] {
   background-image: url("../img/paintInvert.png"); }
 
 .wrapper_task_menu_options > div[data-title="to delete task"] {
   background-image: url("../img/trashInvert.png"); }
 
+.wrapper_task_menu_options .categories_parent {
+  background-color: #212121;
+  box-shadow: 0px 0px 7.5px rgba(255, 255, 255, 0.05);
+  border: 0.5px solid #626262; }
+
 .wrapper_task_menu_date:before {
   background-image: url("../img/editInvert.png"); }
-
-.topBar {
-  background-color: #212121;
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.1); }
-  .topBar:hover {
-    box-shadow: 0px 0px 7.5px rgba(255, 255, 255, 0.1); }
-  .topBar_add {
-    background-image: url("../img/addTaskInvert.png"); }
-  .topBar_theme {
-    background-image: url("../img/darkTheme.png"); }
-  .topBar_info {
-    background-image: url("../img/helpInvert.png"); }
-  .topBar_deleteAll {
-    opacity: .25;
-    background-image: url("../img/checkedTrashAllInvert.png"); }
-  .topBar_trash {
-    opacity: .25;
-    background-image: url("../img/trashAllInvert.png"); }
-  .topBar_exit {
-    background-image: url("../img/exitInvert.png"); }
-
-.helpElement div {
-  background-image: url("../img/emptyArrowInvert.png"); }
-
-.tasks {
-  border-top: 1px solid rgba(255, 255, 255, 0.1); }
-
-.task {
-  background-color: #303030;
-  border: 1px solid #626262; }
-  .task .overButtons > div:nth-child(1) {
-    background-image: url("../img/pasteInvert.png"); }
-  .task .overButtons > div:nth-child(2) {
-    background-image: url("../img/paintInvert.png"); }
-  .task .overButtons > div:nth-child(3) {
-    background-image: url("../img/trashInvert.png"); }
-  .task .taskDivCheckBox input[type=checkbox] + label:before {
-    background-image: url("../img/checkInvert.png"); }
-  .task .taskDivCheckBox input[type=checkbox]:checked + label:before {
-    background-image: url("../img/checkedInvert.png"); }
-  .task .taskDivPin input[type=checkbox] + label:before {
-    background-image: url("../img/pinInvert.png"); }
-  .task .taskDivPin input[type=checkbox]:checked + label:before {
-    background-image: url("../img/pinnedInvert.png"); }
 
 .gettingColor {
   background-color: #212121;
   border: 0.5px solid #626262;
-  box-shadow: 0px 0px 7.5px rgba(255, 255, 255, 0.1); }
+  box-shadow: 0px 0px 7.5px rgba(255, 255, 255, 0.05); }
   .gettingColor div {
-    border: 1px solid rgba(255, 255, 255, 0.1); }
+    border: 1px solid rgba(255, 255, 255, 0.05); }
   .gettingColor div:hover {
     border: 1px solid rgba(255, 255, 255, 0.2); }
 
-.getColor:hover .gettingColor {
-  display: grid;
-  left: 63px; }
+.dragenterTask {
+  filter: drop-shadow(1px 1px 5px rgba(255, 255, 255, 0.3)); }
 
 .popUpNotify {
   background: #303030;
   border: 1px solid #626262;
-  box-shadow: 0px 0px 7.5px rgba(255, 255, 255, 0.1); }
+  box-shadow: 0px 0px 7.5px rgba(255, 255, 255, 0.05); }
+
+.topBar > div:not(:last-child):hover, .overButtons > div:hover, .wrapper_task_menu_options > div:hover, .taskDivPin:hover, div[data-title="close window"]:hover, .wrapper_trash_tasks_task_getBack:hover, .wrapper_trash_tasks_task_removeItem:hover, div[data-title="empty trash"]:hover, .byListAddLine:hover, .byListRemoveLine:hover, .topBar_categories_parent_child_remove:hover, .topBar_categories_parent_child_add_image:hover, .topBar_categories_parent_child.category_add:hover {
+  background-color: rgba(255, 255, 255, 0.05); }
+
+.topBar > div:not(:last-child):active, .overButtons > div:active, .wrapper_task_menu_options > div:active, .taskDivPin:active, div[data-title="close window"]:active, .wrapper_trash_tasks_task_getBack:active, .wrapper_trash_tasks_task_removeItem:active, div[data-title="empty trash"]:active, .byListAddLine:active, .byListRemoveLine:active, .topBar_categories_parent_child_remove:active, .topBar_categories_parent_child_add_image:active, .topBar_categories_parent_child.category_add:active {
+  background-color: rgba(255, 255, 255, 0.2); }
 
 ::-webkit-scrollbar-track {
   background-color: rgba(0, 0, 0, 0.1); }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.1); }
+  background-color: rgba(255, 255, 255, 0.05); }
 
 ::-webkit-scrollbar-thumb:hover {
   background-color: rgba(255, 255, 255, 0.2); }
-
-.topBar > div:not(:last-child):hover, .overButtons > div:hover, .wrapper_task_menu_options > div:hover, .taskDivPin:hover, div[data-title="close window"]:hover, .wrapper_trash_tasks_task_getBack:hover, .wrapper_trash_tasks_task_removeItem:hover, div[data-title="empty trash"]:hover {
-  background-color: rgba(255, 255, 255, 0.1); }
-
-.topBar > div:not(:last-child):active, .overButtons > div:active, .wrapper_task_menu_options > div:active, .taskDivPin:active, div[data-title="close window"]:active, .wrapper_trash_tasks_task_getBack:active, .wrapper_trash_tasks_task_removeItem:active, div[data-title="empty trash"]:active {
-  background-color: rgba(255, 255, 255, 0.2); }
-
-[data-title]:after {
-  color: #444;
-  background-image: -webkit-linear-gradient(top, #fff, #ddd); }

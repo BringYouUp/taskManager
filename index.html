@@ -13,7 +13,7 @@
 	 	<div class="null"></div>
 	 	
 		<div class="wrapper">
-			<div class="wrapper_info">
+			<div class="wrapper_info wrapper_intr">
 				<div class="wrapper_description">
 					<h3>Shortcuts</h3>
 					<div data-title="close window" onclick="toCloseWindow()"></div> 
@@ -21,7 +21,7 @@
 				<div class="wrapper_info_table"></div>
 			</div>
 
-			<div class="wrapper_trash">
+			<div class="wrapper_trash wrapper_intr">
 				<div class="wrapper_description">
 					<h3>Trash</h3>
 					<div data-title="close window" onclick="toCloseWindow()"></div>
@@ -43,6 +43,7 @@
 						<div data-title="done task" onclick="doneIt()"></div>
 						<div data-title="to pin task" onclick="pinIt()"></div>
 						<div data-title="to copy task" onclick="copyIt()"> </div>
+						<div data-title="to choose category" class="categories"></div>
 						<div data-title="to apply color" class="getColorWrapper">
 							<div class="gettingColor" onclick="toDetermineColor()">
 								<div></div>
@@ -65,6 +66,7 @@
 
 		<div class="topBar">
 			<div class="topBar_add" data-title="add task"></div>
+			<div class="topBar_categories" data-title="all categories"></div>
 			<div class="topBar_theme" data-title="chagne theme" onclick="switchTheme()"></div>
 			<div class="topBar_info" data-title="how to use"></div>
 			<div class="topBar_deleteAll" data-title="delete all done task"></div>
