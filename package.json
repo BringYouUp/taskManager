@@ -1,6 +1,6 @@
 {
   "name": "taskmanager",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "description": "my js project",
   "main": "js/script.js",
   "scripts": {

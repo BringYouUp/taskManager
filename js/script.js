@@ -40,7 +40,7 @@ let
     howToUseMap = new Map([
         [['KEY'], 'DESCRIPTION'],
         [['Alt', '+', 'S'], 'save task'],
-        [['Shift', '+', 'N'], 'add new task'],
+        [['Alt', '+', 'N'], 'add new task'],
         [['↑', '/', '↓'], 'switch between lines in LIST MODE'],
         [['Ctrl', '+','[' , '/', ']'], 'for creatig subtasks in LIST MODE'],
         [['Enter' , '/',  'Double click'], 'add new line under active line in LIST MODE'],
@@ -1325,6 +1325,7 @@ function closerTask() {
 }
 
 function closerAddTask() {
+    document.body.removeEventListener('keydown', bodyHotKey)
     document.body.addEventListener('keydown', hotKey)
 
     createMode = true
@@ -1778,7 +1779,8 @@ function hotKey () {
 }
 
 function bodyHotKey () {
-    if (event.shiftKey && event.code === 'KeyN')
+    console.log(event.altKey)
+    if (event.altKey && event.code === 'KeyN')
     {
         event.preventDefault()
         wrapperMain.style.display = 'flex'
