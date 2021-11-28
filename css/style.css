@@ -58,9 +58,6 @@ input[type=checkbox] + label:before {
   height: 20px;
   background-size: cover; }
 
-input[type=checkbox]:checked + label:before {
-  background-size: cover; }
-
 input[type=checkbox]:checked + * + textarea[readonly] {
   opacity: .5;
   cursor: context-menu; }
@@ -323,8 +320,13 @@ div[data-title="close window"] {
     .task_task div {
       position: relative;
       padding: 2px 0; }
+    .task_task input[type=checkbox]:checked + * + textarea[readonly] + * {
+      opacity: .5; }
     .task_task textarea {
       width: calc(100% - 30px); }
+    .task_task .textareaAfter {
+      display: inline-block;
+      height: 22px; }
     .task_task .byListAddLine, .task_task .byListRemoveLine {
       display: none; }
   .task .overButtons {
@@ -519,8 +521,7 @@ div[data-title="close window"] {
         border-radius: 8px; }
         .wrapper_trash_tasks_task > div {
           max-height: 32px;
-          white-space: nowrap;
-          overflow: hidden; }
+          white-space: nowrap; }
         .wrapper_trash_tasks_task_task {
           width: calc(100% - 3 * 32px - 10px);
           font-size: 1.25em;
@@ -528,7 +529,8 @@ div[data-title="close window"] {
           white-space: nowrap;
           overflow: hidden;
           user-select: none;
-          cursor: pointer; }
+          cursor: pointer;
+          overflow-x: auto; }
         .wrapper_trash_tasks_task:hover .wrapper_trash_tasks_task_getBack, .wrapper_trash_tasks_task:hover .wrapper_trash_tasks_task_removeItem {
           opacity: 1; }
           .wrapper_trash_tasks_task:hover .wrapper_trash_tasks_task_getBack span, .wrapper_trash_tasks_task:hover .wrapper_trash_tasks_task_removeItem span {
@@ -579,7 +581,7 @@ div[data-title="close window"] {
         .wrapper_task_task > div:hover .byListAddLine, .wrapper_task_task > div:hover .byListRemoveLine {
           display: inline-block; }
       .wrapper_task_task textarea {
-        width: calc(100% - 26px * 2 - 10px);
+        width: calc(100% - 26px * 3 - 10px);
         overflow: hidden; }
       .wrapper_task_task .byListAddLine, .wrapper_task_task .byListRemoveLine {
         display: none;
@@ -753,7 +755,7 @@ div[data-title="close window"] {
 
 ::-webkit-scrollbar-track {
   background-color: rgba(0, 0, 0, 0.1);
-  border-radius: 3px 0px 0px 3px; }
+  border-radius: 3px; }
 
 ::-webkit-scrollbar-thumb {
-  border-radius: 3px 0px 0px 3px; }
+  border-radius: 3px; }
